@@ -3,17 +3,21 @@
 A reimplementation of the [original paper](http://www.cs.toronto.edu/~gkoch/files/msc-thesis.pdf).
 
 ## Omniglot dataset
-- download dataset
 ```
 git clone https://github.com/brendenlake/omniglot.git
 cd omniglot/python
 unzip images_evaluation.zip
 unzip images_background.zip
+unzip images_background_small1.zip
 
-cd ../..
-# setup directory for saving models
-mkdir cnn_models
+cp -r image_evaluation ../../
+cp -r images_background ../../
+cp -r images_background_small1 ../../
 
-##Requirements
+rm -r omniglot/
+```
+
+## Requirements
 - pytorch
 - python3.6+
+

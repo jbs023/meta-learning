@@ -1,4 +1,6 @@
-**/images_*
 **/.vscode
 **/__pycache__
+
+**/images_*
+**/omniglot
 **/cnn_models
