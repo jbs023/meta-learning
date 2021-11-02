@@ -1,0 +1,4 @@
+**/images_*
+**/.vscode
+**/__pycache__
+**/cnn_models
