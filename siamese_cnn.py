@@ -12,7 +12,7 @@ from dataset import *
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
-PATH = './cnn_models'
+PATH = './cnn_models/'
 
 class SiameseCNN(nn.Module):
     def __init__(self):
@@ -34,7 +34,6 @@ class SiameseCNN(nn.Module):
         x1 = F.relu(self.conv4(x1))
         x1 = torch.flatten(x1, 1)
         x1 = torch.sigmoid(self.fc1(x1))
-        x1 = self.fc2(x1)
 
         #Forward pass for net2
         x2 = self.pool(F.relu(self.conv1(x2)))
@@ -43,11 +42,10 @@ class SiameseCNN(nn.Module):
         x2 = F.relu(self.conv4(x2))
         x2 = torch.flatten(x2, 1)
         x2 = torch.sigmoid(self.fc1(x2))
-        x2 = self.fc2(x2)
 
         #Distance computation
-        # x = torch.abs(x1-x2)
-        x = F.pairwise_distance(x1, x2)
+        x = torch.abs(x1-x2)
+        x = torch.sigmoid(self.fc2(x))
 
         return x.reshape((x.shape[0],1))
 
@@ -57,12 +55,13 @@ def train(dataloader, model, loss_fn, optimizer):
 
     train_loss = list()
     for i, data in enumerate(dataloader):
-        print("Iteration: {}".format(i))
+        # print("Iteration: {}".format(i))
         x1, x2, y = data
         x1, x2, y = x1.to(device), x2.to(device), y.to(device)
 
         # Compute prediction error
         pred = model(x1, x2)
+
         loss = loss_fn(pred, y)
 
         # Backpropagation
@@ -102,10 +101,10 @@ if __name__ == "__main__":
                         help='Parameter to determine test vs train')
 
     args = parser.parse_args()
-    train_path = "./images_background_small1"
+    train_path = "./images_background"
     test_path = "./images_evaluation"
-    batch_size = 64
-    epochs = 1
+    batch_size = 20
+    epochs = 14
 
     data_transforms = transforms.Compose([
         transforms.RandomAffine(15),
@@ -117,9 +116,14 @@ if __name__ == "__main__":
         trainSet = OmniglotTrain(train_path, transform=data_transforms)
         trainloader = DataLoader(trainSet, batch_size=batch_size, shuffle=False)
 
-        net = SiameseCNN()
-        loss_fn = nn.BCELoss()
-        optimizer = optim.Adam(net.parameters(), lr=1e-5)
+        net = SiameseCNN()        
+        # if os.path.exists(PATH+"/siamese-train.pth"):
+        #     net.load_state_dict(torch.load(PATH+"/siamese-train.pth"))
+        if torch.cuda.is_available():
+            net.cuda()
+
+        loss_fn = nn.BCEWithLogitsLoss()
+        optimizer = optim.Adam(net.parameters(), lr=5e-5, weight_decay=1e-5)
 
         for t in range(epochs):
             print(f"Epoch {t+1}\n-------------------------------")
@@ -141,6 +145,8 @@ if __name__ == "__main__":
 
         if os.path.exists(PATH+"/siamese-final.pth"):
             net = SiameseCNN()
+            if torch.cuda.is_available():
+                net.cuda()
             net.load_state_dict(torch.load(PATH+"/siamese-final.pth"))
             
             #Write code to evaluate model

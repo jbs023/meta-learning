@@ -13,14 +13,13 @@ class OmniglotTrain(Dataset):
     def __init__(self, dataPath, transform=None):
         super(OmniglotTrain, self).__init__()
         np.random.seed(0)
-        # self.dataset = dataset
         self.transform = transform
         self.datas, self.num_classes = self.loadToMem(dataPath)
 
     def loadToMem(self, dataPath):
         print("begin loading training dataset to memory")
         datas = {}
-        agrees = [0, 90, 180, 270]
+        agrees = [0]
         idx = 0
 
         for agree in agrees:
