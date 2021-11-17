@@ -1,11 +1,8 @@
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import os
-from numpy.random import choice as npc
 import numpy as np
-import time
 import random
-import torchvision.datasets as dset
 from PIL import Image
 
 
@@ -77,6 +74,7 @@ class OmniglotTest(Dataset):
         self.img1 = None
         self.c1 = None
         self.datas, self.num_classes = self.loadToMem(dataPath)
+        print(len(self.datas.keys()), self.num_classes)
 
     def loadToMem(self, dataPath):
         print("begin loading test dataset to memory")

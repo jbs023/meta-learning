@@ -3,11 +3,13 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import pandas as pd
 
 import os
 import errno
 import argparse
 
+from torch.utils.data import DataLoader
 from dataset import *
 
 # Get cpu or gpu device for training.
@@ -54,6 +56,7 @@ def train(dataloader, model, loss_fn, optimizer):
     size = len(dataloader.dataset)
 
     train_loss = list()
+    avg_loss = list()
     for i, data in enumerate(dataloader):
         # print("Iteration: {}".format(i))
         x1, x2, y = data
@@ -61,7 +64,6 @@ def train(dataloader, model, loss_fn, optimizer):
 
         # Compute prediction error
         pred = model(x1, x2)
-
         loss = loss_fn(pred, y)
 
         # Backpropagation
@@ -90,10 +92,30 @@ def train(dataloader, model, loss_fn, optimizer):
 
             loss, current = loss.item(), i * len(x1)
             print(f"Converged with a loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
-            return True
-    return False
+            return True, loss
+    return False, loss.item()
 
+def test(testloader, net):   
+    #TODO: Is this even right?
+    # Evaluate model 
+    with torch.no_grad():
+        right, error = 0, 0
+        for _, (test1, test2) in enumerate(testloader, 1):
+            print("Iteration: {}/{}".format(_, len(testloader)))
+            test1, test2 = test1.to(device), test2.to(device)
+            output = net.forward(test1, test2).data.cpu().numpy()
+            pred = np.argmax(output)
+            
+            print(output, pred)
+            if pred == 0:
+                right += 1
+            else: 
+                error += 1
 
+        print('*'*70)
+        print('\tTest set\tcorrect:\t%d\terror:\t%d\tprecision:\t%f'%(right, error, right*1.0/(right+error)))
+        print('*'*70)
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Runs experiments for the swarm consensus simulation.')
@@ -103,7 +125,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     train_path = "./images_background"
     test_path = "./images_evaluation"
-    batch_size = 20
+    batch_size = 128
+    way = 20
     epochs = 14
 
     data_transforms = transforms.Compose([
@@ -114,55 +137,40 @@ if __name__ == "__main__":
     if args.train:
         #Train neural network
         trainSet = OmniglotTrain(train_path, transform=data_transforms)
-        trainloader = DataLoader(trainSet, batch_size=batch_size, shuffle=False)
+        trainloader = DataLoader(trainSet, batch_size=batch_size, shuffle=False, num_workers=4)
 
-        net = SiameseCNN()        
-        # if os.path.exists(PATH+"/siamese-train.pth"):
-        #     net.load_state_dict(torch.load(PATH+"/siamese-train.pth"))
+        net = SiameseCNN()
         if torch.cuda.is_available():
             net.cuda()
 
         loss_fn = nn.BCEWithLogitsLoss()
         optimizer = optim.Adam(net.parameters(), lr=5e-5, weight_decay=1e-5)
-
+        track_loss = list()
         for t in range(epochs):
             print(f"Epoch {t+1}\n-------------------------------")
-            converged = train(trainloader, net, loss_fn, optimizer)
+            converged, loss = train(trainloader, net, loss_fn, optimizer)
+            track_loss.append(loss)
             if converged:
                 break
 
         print("Done!")
         print('Finished Training')
 
+        #Save loss over time and network weights
+        df = pd.DataFrame(track_loss, columns=['Loss'])
+        df.to_csv("siamese_final_loss.csv")
         torch.save(net.state_dict(), PATH+"/siamese-final.pth")
         print("Saved PyTorch Model State to {}".format(PATH+"/siamese-final.pth"))
     else:
         #Test neural network
-        testSet = OmniglotTest(test_path, transform=transforms.ToTensor(), times=400, way=batch_size)
-        testloader = DataLoader(testSet, batch_size=batch_size, shuffle=False)
-        dataiter = iter(testloader)
-        images, labels = dataiter.next()
+        testSet = OmniglotTest(test_path, transform=transforms.ToTensor(), times=400, way=way)
+        testloader = DataLoader(testSet, batch_size=way, shuffle=False, num_workers=4)
 
         if os.path.exists(PATH+"/siamese-final.pth"):
             net = SiameseCNN()
-            if torch.cuda.is_available():
-                net.cuda()
+            if torch.cuda.is_available(): net.cuda()
             net.load_state_dict(torch.load(PATH+"/siamese-final.pth"))
-            
-            #Write code to evaluate model
-            with torch.no_grad():
-                right, error = 0, 0
-                for _, (test1, test2) in enumerate(testloader, 1):
-                    print("Iteration: {}/{}".format(_, len(testloader)))
-                    test1, test2 = test1.to(device), test2.to(device)
-                    output = net.forward(test1, test2).data.cpu().numpy()
-                    pred = np.argmax(output)
-                    if pred == 0:
-                        right += 1
-                    else: error += 1
-                print('*'*70)
-                print('\tTest set\tcorrect:\t%d\terror:\t%d\tprecision:\t%f'%(right, error, right*1.0/(right+error)))
-                print('*'*70)
+            test(testloader, net)
         else:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), PATH)
 
