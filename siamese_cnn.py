@@ -15,6 +15,8 @@ from dataset import *
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 PATH = './cnn_models/'
+if not os.path.exists(PATH):
+    os.makedirs(PATH)
 
 class SiameseCNN(nn.Module):
     def __init__(self):
