@@ -12,11 +12,39 @@ import argparse
 from torch.utils.data import DataLoader
 from dataset import *
 
+import sys
+sys.setrecursionlimit(100000)
+
+
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 PATH = './cnn_models/'
 # if not os.path.exists(PATH):
 #     os.makedirs(PATH)
+
+class NeuralNetwork(nn.Module):
+    def __init__(self):
+        super(NeuralNetwork, self).__init__()
+        self.linear_relu_stack = nn.Sequential(
+             nn.Linear(11025, 8192), #
+             nn.ReLU(self), 
+             nn.Linear(8192, 8192), #
+             nn.ReLU(self),
+             nn.Linear(8192, 4096) #
+        )
+        
+        self.fc1 = nn.Linear(4096,1) # check numbers
+
+    def forward(self, x1, x2):
+        x1 = torch.flatten(x1, 1)# flatten x1 
+        x2 = torch.flatten(x2, 1)# flatten x2
+
+        x1 = self.linear_relu_stack(x1)    # x1 foward pass
+        x2 = self.linear_relu_stack(x2)     # x2 forward pass
+
+        distance = torch.abs(x1 - x2)
+        x = torch.sigmoid(self.fc1(distance))
+        return x.reshape((x.shape[0],1))
 
 class SiameseCNN(nn.Module):
     def __init__(self):
@@ -108,15 +136,15 @@ if __name__ == "__main__":
         description='Runs experiments for the swarm consensus simulation.')
     parser.add_argument('-t', '--train', action='store_true',
                         help='Parameter to determine test vs train')    
-    parser.add_argument('-d', '--distortion', action='store_true',
-                        default=False, required=False, help='Apply the 8 affine distortions to each image')
-    parser.add_argument('-n', '--num_examples', default=None, required=False,
-                        help='Number of pairs of images. If none, it runs one example pair for every image (19280)')
+    # parser.add_argument('-d', '--distortion', action='store_true',
+    #                     default=False, required=False, help='Apply the 8 affine distortions to each image')
+    # parser.add_argument('-n', '--num_examples', default=None, required=False,
+    #                     help='Number of pairs of images. If none, it runs one example pair for every image (19280)')
 
     args = parser.parse_args()
-    if args.num_examples: 
-        num_examples = int(args.num_examples)
-    distortions = args.distortion
+    #if args.num_examples: 
+    num_examples = None #int(args.num_examples)
+    distortions = False # args.distortion
     train_path = "./images_background"
     test_path = "./images_evaluation"
     batch_size = 128
@@ -129,7 +157,8 @@ if __name__ == "__main__":
                                 distortions=distortions, num_examples=num_examples)
         trainloader = DataLoader(trainSet, batch_size=batch_size, shuffle=False, num_workers=4)
 
-        net = SiameseCNN()
+        #net = SiameseCNN()
+        net = NeuralNetwork()
         if torch.cuda.is_available(): net.cuda()
         loss_fn = nn.BCEWithLogitsLoss()
         optimizer = optim.Adam(net.parameters(), lr=6e-5)

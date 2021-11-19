@@ -20,19 +20,21 @@ class OmniglotTrain(Dataset):
         idx = 0
 
         for alphaPath in os.listdir(dataPath):
-            for charPath in os.listdir(os.path.join(dataPath, alphaPath)):
-                datas[idx] = []
-                for samplePath in os.listdir(os.path.join(dataPath, alphaPath, charPath)):
-                    filePath = os.path.join(dataPath, alphaPath, charPath, samplePath)
-                    if self.distortions:
-                        #Apply 8 affine distortions to each image
-                        original_image = Image.open(filePath).convert('L')
-                        for _ in range(0, 8):
-                            distortedImg = self.affine_distortions(original_image)
-                            datas[idx].append(distortedImg.convert('L'))
-                    else:
-                        datas[idx].append(Image.open(filePath).convert('L'))
-                idx += 1
+            if alphaPath != ".DS_Store":
+                for charPath in os.listdir(os.path.join(dataPath, alphaPath)):
+                    datas[idx] = []
+                    if charPath != ".DS_Store":
+                        for samplePath in os.listdir(os.path.join(dataPath, alphaPath, charPath)):
+                            filePath = os.path.join(dataPath, alphaPath, charPath, samplePath)
+                            if self.distortions:
+                                #Apply 8 affine distortions to each image
+                                original_image = Image.open(filePath).convert('L')
+                                for _ in range(0, 8):
+                                    distortedImg = self.affine_distortions(original_image)
+                                    datas[idx].append(distortedImg.convert('L'))
+                            else:
+                                datas[idx].append(Image.open(filePath).convert('L'))
+                        idx += 1
 
         print("finish loading training dataset to memory")
         return datas, idx
