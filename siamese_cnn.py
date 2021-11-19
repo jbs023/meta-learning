@@ -12,38 +12,35 @@ import argparse
 from torch.utils.data import DataLoader
 from dataset import *
 
-import sys
-sys.setrecursionlimit(100000)
-
-
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 PATH = './cnn_models/'
-# if not os.path.exists(PATH):
-#     os.makedirs(PATH)
+if not os.path.exists(PATH):
+    os.makedirs(PATH)
 
 class NeuralNetwork(nn.Module):
     def __init__(self):
-        super(NeuralNetwork, self).__init__()
-        self.linear_relu_stack = nn.Sequential(
-             nn.Linear(11025, 8192), #
-             nn.ReLU(self), 
-             nn.Linear(8192, 8192), #
-             nn.ReLU(self),
-             nn.Linear(8192, 4096) #
-        )
+        super().__init__()
+        self.fc1 = nn.Linear(11025, 8192)
+        self.fc2 = nn.Linear(8192, 8192)
+        self.fc3 = nn.Linear(8192, 4096)
         
-        self.fc1 = nn.Linear(4096,1) # check numbers
+        self.fc4 = nn.Linear(4096,1) # check numbers
 
     def forward(self, x1, x2):
         x1 = torch.flatten(x1, 1)# flatten x1 
         x2 = torch.flatten(x2, 1)# flatten x2
 
-        x1 = self.linear_relu_stack(x1)    # x1 foward pass
-        x2 = self.linear_relu_stack(x2)     # x2 forward pass
+        x1 = F.relu(self.fc1(x1))
+        x1 = F.relu(self.fc2(x1))
+        x1 = F.relu(self.fc3(x1))
+
+        x2 = F.relu(self.fc1(x2))
+        x2 = F.relu(self.fc2(x2))
+        x2 = F.relu(self.fc3(x2))
 
         distance = torch.abs(x1 - x2)
-        x = torch.sigmoid(self.fc1(distance))
+        x = torch.sigmoid(self.fc4(distance))
         return x.reshape((x.shape[0],1))
 
 class SiameseCNN(nn.Module):
@@ -106,7 +103,7 @@ def train(dataloader, model, loss_fn, optimizer):
             avg_loss.append(t_loss)
             print(f"loss: {t_loss:>7f}  [{current:>5d}/{size:>5d}]")
 
-            #Save every N iterations
+            # Save every N iterations
             torch.save(net.state_dict(), PATH+"/siamese-train.pth")
     
     torch.save(net.state_dict(), PATH+"/siamese-train.pth")
@@ -159,7 +156,7 @@ if __name__ == "__main__":
 
         #net = SiameseCNN()
         net = NeuralNetwork()
-        if torch.cuda.is_available(): net.cuda()
+        # if torch.cuda.is_available(): net.cuda()
         loss_fn = nn.BCEWithLogitsLoss()
         optimizer = optim.Adam(net.parameters(), lr=6e-5)
         track_loss = list()
