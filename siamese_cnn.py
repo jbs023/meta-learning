@@ -15,8 +15,8 @@ from dataset import *
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 PATH = './cnn_models/'
-if not os.path.exists(PATH):
-    os.makedirs(PATH)
+# if not os.path.exists(PATH):
+#     os.makedirs(PATH)
 
 class SiameseCNN(nn.Module):
     def __init__(self):
@@ -108,7 +108,7 @@ if __name__ == "__main__":
         description='Runs experiments for the swarm consensus simulation.')
     parser.add_argument('-t', '--train', action='store_true',
                         help='Parameter to determine test vs train')    
-    parser.add_argument('-d', '--distorition_flag', action='store_true',
+    parser.add_argument('-d', '--distortion', action='store_true',
                         default=False, required=False, help='Apply the 8 affine distortions to each image')
     parser.add_argument('-n', '--num_examples', default=None, required=False,
                         help='Number of pairs of images. If none, it runs one example pair for every image (19280)')
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.num_examples: 
         num_examples = int(args.num_examples)
-    distortions = args.distorition_flag
+    distortions = args.distortion
     train_path = "./images_background"
     test_path = "./images_evaluation"
     batch_size = 128
