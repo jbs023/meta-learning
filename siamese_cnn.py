@@ -55,7 +55,6 @@ def train(dataloader, model, loss_fn, optimizer):
     global PATH
     size = len(dataloader.dataset)
 
-    train_loss = list()
     avg_loss = list()
     for i, data in enumerate(dataloader):
         # print("Iteration: {}".format(i))
@@ -77,24 +76,11 @@ def train(dataloader, model, loss_fn, optimizer):
             avg_loss.append(t_loss)
             print(f"loss: {t_loss:>7f}  [{current:>5d}/{size:>5d}]")
 
-            #Save every 1000 iterations
+            #Save every N iterations
             torch.save(net.state_dict(), PATH+"/siamese-train.pth")
-
-        #Check for convergence (i.e loss over the last 20 iterations is the same)
-        train_loss.append(loss.item())
-        if len(train_loss) >= 20:
-            train_loss = train_loss[1:]
-        
-        diff = list([abs(train_loss[i] - train_loss[i-1]) for i in range(1, len(train_loss))])
-        avg_diff = np.average(diff)
-        if i >= 20 and avg_diff <= 0.0001:
-            #Save model and break
-            torch.save(net.state_dict(), PATH+"/siamese-train.pth")
-
-            loss, current = loss.item(), i * len(x1)
-            print(f"Converged with a loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
-            return True, np.mean(avg_loss)
-    return False, np.mean(avg_loss)
+    
+    torch.save(net.state_dict(), PATH+"/siamese-train.pth")
+    return np.mean(avg_loss)
 
 def test(testloader, net):   
     # Evaluate model 
@@ -120,14 +106,15 @@ if __name__ == "__main__":
         description='Runs experiments for the swarm consensus simulation.')
     parser.add_argument('-t', '--train', action='store_true',
                         help='Parameter to determine test vs train')    
-    parser.add_argument('-d', '--distorition_flag', action='store_true', default=False,
-                        help='Apply the 8 affine distortions to each image')
-    parser.add_argument('-n', '--num_examples', default=None,
+    parser.add_argument('-d', '--distorition_flag', action='store_true',
+                        default=False, required=False, help='Apply the 8 affine distortions to each image')
+    parser.add_argument('-n', '--num_examples', default=None, required=False,
                         help='Number of pairs of images. If none, it runs one example pair for every image (19280)')
 
     args = parser.parse_args()
+    if args.num_examples: 
+        num_examples = int(args.num_examples)
     distortions = args.distorition_flag
-    num_examples = int(args.num_examples)
     train_path = "./images_background"
     test_path = "./images_evaluation"
     batch_size = 128
@@ -143,19 +130,18 @@ if __name__ == "__main__":
         net = SiameseCNN()
         if torch.cuda.is_available(): net.cuda()
         loss_fn = nn.BCEWithLogitsLoss()
-        optimizer = optim.Adam(net.parameters(), lr=5e-5, weight_decay=1e-5)
+        optimizer = optim.Adam(net.parameters(), lr=6e-5)
         track_loss = list()
 
         #Train network
         for t in range(epochs):
             print(f"Epoch {t+1}\n-------------------------------")
-            converged, loss = train(trainloader, net, loss_fn, optimizer)
+            loss = train(trainloader, net, loss_fn, optimizer)
+
+            #Save loss to a file
             track_loss.append(loss)
             df = pd.DataFrame(track_loss, columns=['Loss'])
             df.to_csv("siamese_final_loss.csv")
-
-            if converged:
-                break
 
         print("Done!")
         print('Finished Training')
@@ -168,10 +154,10 @@ if __name__ == "__main__":
         testSet = OmniglotTest(test_path, transform=transforms.ToTensor(), times=400, way=way)
         testloader = DataLoader(testSet, batch_size=way, shuffle=False, num_workers=4)
 
-        if os.path.exists(PATH+"/siamese-cnn-no-transform.pth"):
+        if os.path.exists(PATH+"/siamese-train.pth"):
             net = SiameseCNN()
             if torch.cuda.is_available(): net.cuda()
-            net.load_state_dict(torch.load(PATH+"/siamese-cnn-no-transform.pth"))
+            net.load_state_dict(torch.load(PATH+"/siamese-train.pth"))
             test(testloader, net)
         else:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), PATH)
