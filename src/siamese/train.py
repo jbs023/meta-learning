@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 
 from torch.utils.data import DataLoader
-from torchvision.transforms.functional import InterpolationMode
+# from torchvision.transforms.functional import InterpolationMode
 from torchvision.transforms import Compose, ToTensor, Resize
 
 from dataset import *
@@ -93,13 +93,13 @@ if __name__ == "__main__":
 
     distortions = args.distortion
     suffix = args.file_suffix
-    train_path = "./images_background"
-    test_path = "./images_evaluation"
+    train_path = "../../data/images_background"
+    test_path = "../../data/images_evaluation"
     batch_size = 128
     way = 5
     epochs = 300 if not args.convolutional else 200
 
-    transforms = [Compose([Resize(28, InterpolationMode.BICUBIC), ToTensor()])]
+    transforms = Compose([Resize(28), ToTensor()])
 
     if args.train:
         #Set up training dataset and neural network 

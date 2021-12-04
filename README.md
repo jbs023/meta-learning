@@ -14,12 +14,25 @@ unzip images_evaluation.zip
 unzip images_background.zip
 unzip images_background_small1.zip
 
-cp -r image_evaluation ../../
-cp -r images_background ../../
-cp -r images_background_small1 ../../
-
-rm -r omniglot/
+cp -r image_evaluation ../../data/
+cp -r images_background ../../data/
+cp -r images_background_small1 ../../data/
 ```
+
+## Usage
+The following is the general procedure for training and testing each model:
+
+```
+cd src/<model_type_dir>
+
+#Train
+python train.py -t -s <saved_model_file_suffix>
+
+#Test
+python train.py -s <saved_model_file_suffix>
+```
+
+The matching network implementation will automatically download the data you need, but the Siamese Network implementation requires you to following the procedure in the preceding section.
 
 ## Requirements
 - pytorch
