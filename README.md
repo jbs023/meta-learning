@@ -4,6 +4,10 @@ A reimplementation of some popular approaches
 1. [Siamese Neural Networks](http://www.cs.toronto.edu/~gkoch/files/msc-thesis.pdf)
 2. [Matching Networks](https://arxiv.org/pdf/1606.04080.pdf)
 
+WIP:
+3. [Prototypical Networks](https://arxiv.org/pdf/1703.05175.pdf)
+4. [Model Agnostic Meta-Learning](http://proceedings.mlr.press/v70/finn17a/finn17a.pdf)
+
 ## Omniglot dataset
 Siamese and Matching code examples use different dataloaders. The Siamese dataloader requires you to download the files upfront. The Matching Network code does not.
 
