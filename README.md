@@ -18,11 +18,9 @@ unzip images_evaluation.zip
 unzip images_background.zip
 unzip images_background_small1.zip
 
-cp -r image_evaluation ../../
-cp -r images_background ../../
-cp -r images_background_small1 ../../
-
-rm -r omniglot/
+cp -r image_evaluation ../../data/
+cp -r images_background ../../data/
+cp -r images_background_small1 ../../data/
 ```
 
 ## Usage
