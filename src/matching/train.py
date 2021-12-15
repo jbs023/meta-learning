@@ -8,14 +8,21 @@ import argparse
 import pandas as pd
 import numpy as np
 
-from meta_data_loader import *
+from torchmeta.datasets.helpers import omniglot
+from torchmeta.utils.data import BatchMetaDataLoader
 from model import *
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
-PATH = '../../models/matching'
-if not os.path.exists(PATH):
-    os.makedirs(PATH)
+
+#Set up necessary folders for saving results
+PATH = "/".join(os.path.dirname(os.path.abspath(__file__)).split("/")[:-2])
+if not os.path.exists(PATH+"/models/matching"):
+    os.makedirs(PATH+"/models/matching")
+if not os.path.exists(PATH+"/data"):
+    os.makedirs(PATH+"/data/")
+if not os.path.exists(PATH+"/output"):
+    os.makedirs(PATH+"/output/")
 
 def train(dataloader, model, loss_fn, optimizer, suffix, num_batches=100):
     global PATH
@@ -29,6 +36,7 @@ def train(dataloader, model, loss_fn, optimizer, suffix, num_batches=100):
 
         # Compute prediction error
         logits = model(train_inputs, train_targets, test_inputs)
+        print(logits.shape, test_targets.shape)
         loss = loss_fn(logits, test_targets)
 
         # Backpropagation
@@ -45,12 +53,12 @@ def train(dataloader, model, loss_fn, optimizer, suffix, num_batches=100):
             avg_accuracy.append(accuracy.item())
 
             # Save every N iterations
-            torch.save(net.state_dict(), PATH+"/matching-train-{}.pth".format(suffix))
+            torch.save(net.state_dict(), PATH+"/models/matching/matching-train-{}.pth".format(suffix))
 
         if i > num_batches:
             break
     
-    torch.save(net.state_dict(), PATH+"/matching-train-{}.pth".format(suffix))
+    torch.save(net.state_dict(), PATH+"/models/matching/matching-train-{}.pth".format(suffix))
     return np.mean(avg_loss), np.mean(avg_accuracy)
 
 def test(dataloader, model, num_batches=100):   
@@ -94,7 +102,7 @@ if __name__ == "__main__":
     shot = 1
     epochs = 100
 
-    dataset = omniglot("../../data", ways=way, shots=shot, test_shots=15, meta_train=True, download=True)
+    dataset = omniglot(PATH+"/data", ways=way, shots=shot, test_shots=shot, meta_train=True, download=True)
     dataloader = BatchMetaDataLoader(dataset, batch_size=batch_size, num_workers=4)
 
     if args.train:
@@ -114,20 +122,20 @@ if __name__ == "__main__":
             #Save loss to a file
             track_loss.append((loss, accuracy))
             df = pd.DataFrame(track_loss, columns=['Loss', 'Accuracy'])
-            df.to_csv("matching_final_loss_{}.csv".format(suffix))
+            df.to_csv(PATH+"/output/matching_final_loss_{}.csv".format(suffix))
 
         print("Done!")
         print('Finished Training')
 
         #Save loss over time and network weights
-        filePath = PATH+"/matching-final-{}.pth".format(suffix)
+        filePath = PATH+"/models/matching/matching-final-{}.pth".format(suffix)
         torch.save(net.state_dict(), filePath)
         print("Saved PyTorch Model State to {}".format(filePath))
     else:
         #Test neural network
-        if os.path.exists(PATH+"/matching-final-{}.pth".format(suffix)):
+        if os.path.exists(PATH+"/models/matching/matching-final-{}.pth".format(suffix)):
             net = MatchingNetwork(1, 64)
-            net.load_state_dict(torch.load(PATH+"/matching-final-{}.pth".format(suffix)))
+            net.load_state_dict(torch.load(PATH+"/models/matching/matching-final-{}.pth".format(suffix)))
             if torch.cuda.is_available(): 
                 net.cuda()
 
