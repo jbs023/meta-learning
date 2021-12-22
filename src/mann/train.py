@@ -27,7 +27,7 @@ def model_eval(images, labels, model):
 
 
 def main(config):
-    device = torch.device("cpu")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     logdir = config.logdir+"_{}_{}".format(config.num_classes, config.num_samples)
     writer = SummaryWriter(logdir)
 

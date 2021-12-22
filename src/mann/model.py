@@ -1,15 +1,8 @@
 #Parts of the code borrowed from here: http://cs330.stanford.edu/  
 #Specifically: http://cs330.stanford.edu/material/hw1.zip
-
-import argparse
-import os
-import torch
 import copy
-
+import torch
 from torch import nn
-from load_data import DataGenerator
-from google_drive_downloader import GoogleDriveDownloader as gdd
-from torch.utils.tensorboard import SummaryWriter
 
 class MANN(nn.Module):
 
