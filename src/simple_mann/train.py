@@ -1,14 +1,17 @@
 import argparse
 import os
 import torch
-import copy
+import pathlib
 
-from torch import nn
-from load_data import DataGenerator
-from dnc import DNC
-from google_drive_downloader import GoogleDriveDownloader as gdd
-from torch.utils.tensorboard import SummaryWriter
 from model import MANN
+from load_data import DataGenerator
+from google_drive_downloader import GoogleDriveDownloader as gdd
+
+from torch.utils.tensorboard import SummaryWriter
+
+# Get cpu or gpu device for training.
+path = "/".join(str(pathlib.Path(__file__).parent.resolve()).split("/")[:-2])
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def train_step(images, labels, model, optim):
     predictions = model(images, labels)
@@ -27,20 +30,21 @@ def model_eval(images, labels, model):
 
 
 def main(config):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    logdir = config.logdir+"_{}_{}".format(config.num_classes, config.num_samples)
+    logdir = "{}/{}_{}_{}".format(path, config.logdir, config.num_classes, config.num_samples)
     writer = SummaryWriter(logdir)
 
     # Download Omniglot Dataset
-    if not os.path.isdir('./omniglot_resized'):
+    omniglot_path = "{}/data/omniglot_resized".format(path)
+    if not os.path.isdir(omniglot_path):
         gdd.download_file_from_google_drive(file_id='1iaSFXIYC3AB8q9K_M-oVMa4pmB7yKMtI',
-                                            dest_path='./omniglot_resized.zip',
+                                            dest_path="{}/data/omniglot_resized.zip".format(path),
                                             unzip=True)
-    assert os.path.isdir('./omniglot_resized')
+    assert os.path.isdir(omniglot_path)
 
     # Create Data Generator
     data_generator = DataGenerator(config.num_classes, 
                                    config.num_samples, 
+                                   data_folder=omniglot_path,
                                    device=device)
 
     # Create model and optimizer
@@ -77,8 +81,7 @@ if __name__=='__main__':
     parser.add_argument('--num_classes', type=int, default=5)
     parser.add_argument('--num_samples', type=int, default=1)
     parser.add_argument('--meta_batch_size', type=int, default=128)
-    parser.add_argument('--logdir', type=str, 
-                        default='run/log')
+    parser.add_argument('--logdir', type=str, default='run/simple_mann')
     parser.add_argument('--training_steps', type=int, default=10000)
     parser.add_argument('--log_every', type=int, default=100)
     parser.add_argument('--model_size', type=int, default=128)

@@ -10,37 +10,39 @@ A reimplementation of some popular approaches
 Note: Implementations are all a little different, will standardize them one day
 
 ## Omniglot dataset
-Each module uses a different dataloader. The Siamese dataloader requires you to download the files upfront. Everything else should handle the data management automatically.
+Right now, each model has a different data loading scheme. The Siamese Network model needs the data to be manually downloaded.
 
 ```
+mkdir data
+
 git clone https://github.com/brendenlake/omniglot.git
 cd omniglot/python
-unzip images_evaluation.zip
-unzip images_background.zip
-unzip images_background_small1.zip
 
-cp -r image_evaluation ../../data/
-cp -r images_background ../../data/
-cp -r images_background_small1 ../../data/
+cp images_background.zip ../../data
+cp images_evaluation.zip ../../data
+cd ../../data
+
+unzip images_background.zip
+unzip images_evaluation.zip
+
+cd ../
+rm -r omniglot/
 ```
 
 ## Usage
-The following is the general procedure for training and testing each model:
+The following is the general procedure for training each model:
 
 ```
 cd src/<model_type_dir>
+python train.py
 
-#Train
-python train.py -t -s <saved_model_file_suffix>
+tensorboard --logdir=run/<model_type_name>
 
-#Test
-python train.py -s <saved_model_file_suffix>
 ```
-
-The matching network implementation will automatically download the data you need, but the Siamese Network implementation requires you to following the procedure in the preceding section.
 
 ## Requirements
 - pytorch
+- tensorboard
 - torchmeta
-- python3.6+
+- python3.8
 
