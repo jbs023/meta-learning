@@ -53,7 +53,7 @@ class DataGenerator(object):
     A "class" is considered a class of omniglot digits.
     """
 
-    def __init__(self, num_classes, num_samples_per_class, config={}, device = torch.device('cpu')):
+    def __init__(self, num_classes, num_samples_per_class, data_folder="./omniglot_resized", device = torch.device('cpu')):
         """
         Args:
             num_classes: int
@@ -68,9 +68,7 @@ class DataGenerator(object):
         """
         self.num_samples_per_class = num_samples_per_class
         self.num_classes = num_classes
-
-        data_folder = config.get('data_folder', './omniglot_resized')
-        self.img_size = config.get('img_size', (28, 28))
+        self.img_size = (28, 28)
 
         self.dim_input = np.prod(self.img_size)
         self.dim_output = self.num_classes

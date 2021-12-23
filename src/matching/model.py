@@ -61,3 +61,7 @@ class MatchingNetwork(nn.Module):
                                         test_embedding,
                                         5)
         return log_probas.exp()
+
+    def loss_function(self, pred, labels):
+        loss_fn = nn.NLLLoss()
+        return loss_fn(pred, labels)
