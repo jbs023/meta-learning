@@ -63,3 +63,6 @@ class ProtoNetwork(nn.Module):
         prototypes = get_prototypes(train_embedding, 5)
         dist = euclidean_dist(prototypes, test_embedding)
         return F.log_softmax(-dist, dim=1)
+
+    def loss_function(self, pred, labels):
+        return F.cross_entropy(pred, labels)
