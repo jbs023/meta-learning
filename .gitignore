@@ -2,7 +2,10 @@
 **/__pycache__
 
 **/images_*
-**/omniglot
+**/omniglot*
 **/models
+**/data
+**/run
 
 *.csv
+*.zip

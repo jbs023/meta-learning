@@ -2,10 +2,15 @@
 
 A reimplementation of some popular approaches
 1. [Siamese Neural Networks](http://www.cs.toronto.edu/~gkoch/files/msc-thesis.pdf)
-2. [Matching Networks](https://arxiv.org/pdf/1606.04080.pdf)
+2. [MANN](https://arxiv.org/pdf/1605.06065.pdf)
+3. [Matching Networks](https://arxiv.org/pdf/1606.04080.pdf)
+4. [Prototypical Networks](https://arxiv.org/pdf/1703.05175.pdf)
+5. [WIP: Model Agnostic Meta-Learning](http://proceedings.mlr.press/v70/finn17a/finn17a.pdf)
+
+Note: Implementations are all a little different, will standardize them one day
 
 ## Omniglot dataset
-Siamese and Matching code examples use different dataloaders. The Siamese dataloader requires you to download the files upfront. The Matching Network code does not.
+Each module uses a different dataloader. The Siamese dataloader requires you to download the files upfront. Everything else should handle the data management automatically.
 
 ```
 git clone https://github.com/brendenlake/omniglot.git
