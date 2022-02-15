@@ -14,7 +14,6 @@ from torch.utils.tensorboard import SummaryWriter
 path = "/".join(str(pathlib.Path(__file__).parent.resolve()).split("/")[:-2])
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-
 def train(dataloader, model, optimizer, num_batches=100):
     avg_loss = list()
     for i, batch in enumerate(dataloader):
