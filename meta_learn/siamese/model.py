@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from dataset import *
-
 class SiameseNetwork(nn.Module):
     def __init__(self):
         super().__init__()
@@ -32,10 +30,10 @@ class SiameseNetwork(nn.Module):
 class SiameseCNN(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(1, 64, 10)
-        self.conv2 = nn.Conv2d(64, 128, 7)
-        self.conv3 = nn.Conv2d(128, 128, 4)
-        self.conv4 = nn.Conv2d(128, 256, 4)
+        self.conv1 = nn.Conv2d(1, 64, 10, padding=2)
+        self.conv2 = nn.Conv2d(64, 128, 7, padding=2)
+        self.conv3 = nn.Conv2d(128, 128, 4, padding=2)
+        self.conv4 = nn.Conv2d(128, 256, 1, padding=2)
         self.fc1 = nn.Linear(256 * 6 * 6, 4096)
         self.fc2 = nn.Linear(4096, 1)
 
@@ -62,4 +60,5 @@ class SiameseCNN(nn.Module):
         x = torch.abs(x1-x2)
         x = torch.sigmoid(self.fc2(x))
 
-        return x.reshape((x.shape[0],1))
+        return x
+

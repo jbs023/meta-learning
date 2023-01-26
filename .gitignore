@@ -1,9 +1,10 @@
 **/.vscode
 **/__pycache__
+**/*.egg-info
 
 **/images_*
 **/omniglot*
-**/models
+**/model*
 **/data
 **/run
 
