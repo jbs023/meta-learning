@@ -7,13 +7,14 @@ import torch.nn as nn
 
 from tqdm import tqdm
 from torch.utils.data import DataLoader
-from meta_learn.matching.model import MatchingNetwork
+from meta_learn.proto.model import ProtoNetwork
 from meta_learn.utils import get_meta_omniglot
 
 from torch.utils.tensorboard import SummaryWriter
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def train(dataloader, model, loss_fn, optimizer):
     avg_loss = list()
@@ -27,14 +28,12 @@ def train(dataloader, model, loss_fn, optimizer):
         # Compute prediction error
         logits = model(support_x, support_y, query_x)
         loss = loss_fn(logits, query_y)
+        avg_loss.append(loss.detach().item())
 
         # Backpropagation
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
-        # Log performance
-        avg_loss.append(loss.detach().item())
 
     return np.mean(avg_loss)
 
@@ -78,9 +77,9 @@ def main(config):
     trainloader = DataLoader(train_set, batch_size=bs, shuffle=True, num_workers=4)
     testloader = DataLoader(test_set, batch_size=bs, shuffle=False, num_workers=4)
 
-    model = MatchingNetwork(1, 64)
+    model = ProtoNetwork(1, 32)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
-    loss_fn = nn.NLLLoss()
+    loss_fn = nn.CrossEntropyLoss()
     if torch.cuda.is_available():
         model.cuda()
 

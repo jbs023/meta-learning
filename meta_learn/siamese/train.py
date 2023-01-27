@@ -76,7 +76,7 @@ def main(config):
         model.cuda()
         
     loss_fn = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=6e-5, weight_decay=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-3)
 
     #Train network
     for t in range(epochs):
@@ -95,6 +95,6 @@ if __name__ == "__main__":
     parser.add_argument('--num_classes', type=int, default=5)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--log_every', type=int, default=10)
+    parser.add_argument('--log_every', type=int, default=1)
     parser.add_argument('--path', type=str, default=os.getcwd())
     main(parser.parse_args())

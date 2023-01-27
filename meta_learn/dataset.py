@@ -5,6 +5,7 @@ import numpy as np
 import random
 from PIL import Image, ImageOps
 
+#TODO: Probably come up with a better dataset
 class Omniglot(Dataset):
     def __init__(self, dataPath, transform=None, num_examples=None):
         np.random.seed(0)
@@ -86,8 +87,8 @@ class OmniglotMeta(Dataset):
         return datas, idx
 
     def __len__(self):
-        #TODO: This can be lower, right?
-        return self.num_examples
+        # return self.num_examples
+        return 1000
 
     def __getitem__(self, index):
         support_set = list()
