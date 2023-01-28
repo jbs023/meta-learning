@@ -87,8 +87,8 @@ class OmniglotMeta(Dataset):
         return datas, idx
 
     def __len__(self):
-        # return self.num_examples
-        return 1000
+        return self.num_examples
+        # return 1000
 
     def __getitem__(self, index):
         support_set = list()

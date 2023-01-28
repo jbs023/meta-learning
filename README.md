@@ -12,6 +12,8 @@ A reimplementation of some popular approaches.
 
 This repo is an exercise for my own education and heavily relies on other people's code. I try to cite the necessary sources when appropriate. Additionally, there are many things that are redudant and un-optimized. One day I hope to go through and make everything pretty, but you know how grad school is.
 
+A lot of this is slow to run, but simple to read (hopefully).
+
 Methods to implement/test:
 
 1. MAML
