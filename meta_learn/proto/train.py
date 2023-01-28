@@ -4,6 +4,7 @@ import argparse
 import numpy as np
 import torch.optim as optim
 import torch.nn as nn
+import torch.nn.functional as F
 
 from tqdm import tqdm
 from torch.utils.data import DataLoader
@@ -17,24 +18,59 @@ from torch.utils.tensorboard import SummaryWriter
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+def get_num_samples(targets, num_classes, dtype=None):
+    batch_size = targets.size(0)
+    with torch.no_grad():
+        ones = torch.ones_like(targets, dtype=dtype)
+        num_samples = ones.new_zeros((batch_size, num_classes))
+        num_samples.scatter_add_(1, targets, ones)
+    return num_samples
 
-def train(dataloader, model, loss_fn, optimizer, num_batches):
+
+def get_prototypes(embeddings, targets, num_classes):
+    batch_size, embedding_size = embeddings.size(0), embeddings.size(-1)
+    
+    num_samples = get_num_samples(targets, num_classes, dtype=embeddings.dtype)
+    num_samples.unsqueeze_(-1)
+    num_samples = torch.max(num_samples, torch.ones_like(num_samples))
+
+    prototypes = embeddings.new_zeros((batch_size, num_classes, embedding_size))
+    indices = targets.unsqueeze(-1).expand_as(embeddings)
+    prototypes.scatter_add_(1, indices, embeddings).div_(num_samples)
+
+    return prototypes
+
+
+def prototypical_loss(prototypes, embeddings, targets, **kwargs):
+    squared_distances = torch.sum((prototypes.unsqueeze(2)
+        - embeddings.unsqueeze(1)) ** 2, dim=-1)
+    return F.cross_entropy(-squared_distances, targets, **kwargs)
+
+def get_accuracy(prototypes, embeddings, targets):
+    sq_distances = torch.sum((prototypes.unsqueeze(1)
+        - embeddings.unsqueeze(2)) ** 2, dim=-1)
+    _, predictions = torch.min(sq_distances, dim=-1)
+    return torch.mean(predictions.eq(targets).float())
+
+def train(dataloader, model, optimizer, num_batches):
     avg_loss = list()
 
     with tqdm(dataloader, total=num_batches) as pbar:
         for batch_idx, batch in enumerate(pbar):
             model.zero_grad()
 
-            support_x, support_y = batch["train"]  # (batch_size, way, shot, 28, 28)
-            query_x, query_y = batch["test"]  # (batch_size, 1, shot, 28, 28)
+            train_inputs, train_targets = batch['train']
+            train_inputs = train_inputs.to(device=device)
+            train_targets = train_targets.to(device=device)
+            train_embeddings = model(train_inputs)
 
-            support_x, support_y = support_x.to(device), support_y.to(device)
-            query_x, query_y = query_x.to(device), query_y.to(device)
+            test_inputs, test_targets = batch['test']
+            test_inputs = test_inputs.to(device=device)
+            test_targets = test_targets.to(device=device)
+            test_embeddings = model(test_inputs)
 
-            # Compute prediction error
-            logits = model(support_x, support_y, query_x)
-            loss = loss_fn(logits, query_y)
-            avg_loss.append(loss.detach().item())
+            prototypes = get_prototypes(train_embeddings, train_targets, 5)
+            loss = prototypical_loss(prototypes, test_embeddings, test_targets)
 
             # Backpropagation
             optimizer.zero_grad()
@@ -47,32 +83,33 @@ def train(dataloader, model, loss_fn, optimizer, num_batches):
     return np.mean(avg_loss)
 
 
-def test(dataloader, model, loss_fn, num_batches):
+def test(dataloader, model, num_batches):
     # Evaluate model
     accuracy_list = list()
     avg_loss = list()
     with torch.no_grad():
-        with tqdm(dataloader, total=num_batches) as pbar:
-            for batch_idx, batch in enumerate(pbar):
-                model.zero_grad()
+        for batch_idx, batch in enumerate(dataloader):
+            model.zero_grad()
 
-                support_x, support_y = batch["train"]  # (batch_size, way, shot, 28, 28)
-                query_x, query_y = batch["test"]  # (batch_size, 1, shot, 28, 28)
+            train_inputs, train_targets = batch['train']
+            train_inputs = train_inputs.to(device=device)
+            train_targets = train_targets.to(device=device)
+            train_embeddings = model(train_inputs)
 
-                support_x, support_y = support_x.to(device), support_y.to(device)
-                query_x, query_y = query_x.to(device), query_y.to(device)
+            test_inputs, test_targets = batch['test']
+            test_inputs = test_inputs.to(device=device)
+            test_targets = test_targets.to(device=device)
+            test_embeddings = model(test_inputs)
 
-                # calculate the accuracy
-                logits = model(support_x, support_y, query_x)
-                loss = loss_fn(logits, query_y)
-                avg_loss.append(loss.detach().item())
+            prototypes = get_prototypes(train_embeddings, train_targets, 5)
+            loss = prototypical_loss(prototypes, test_embeddings, test_targets)
+            avg_loss.append(loss.detach().item())
 
-                test_predictions = torch.argmax(logits, dim=1)
-                accuracy = torch.mean((test_predictions == query_y).float())
-                accuracy_list.append(accuracy.item())
+            accuracy = get_accuracy(prototypes, test_embeddings, test_targets)
+            accuracy_list.append(accuracy.item())
 
-                if batch_idx > num_batches:
-                    break
+            if batch_idx > num_batches:
+                break
 
     return np.mean(accuracy_list), np.mean(avg_loss)
 
@@ -109,20 +146,19 @@ def main(config):
     trainloader = BatchMetaDataLoader(train_dataset, batch_size=bs, shuffle=True, num_workers=4)
     testloader = BatchMetaDataLoader(test_dataset, batch_size=bs, shuffle=True, num_workers=4)
 
-    model = ProtoNetwork(1, 32)
+    model = ProtoNetwork(1, 64)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
-    loss_fn = nn.CrossEntropyLoss()
     if torch.cuda.is_available():
         model.cuda()
 
     # Train network
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
-        train_loss = train(trainloader, model, loss_fn, optimizer, num_batches)
+        train_loss = train(trainloader, model, optimizer, num_batches)
 
         # Test neural network
         if t % config.log_every == 0:
-            test_accuracy, test_loss = test(testloader, model, loss_fn, num_batches)
+            test_accuracy, test_loss = test(testloader, model, num_batches)
             print(f"Train Loss: {train_loss}    Test Loss: {test_loss}      Test Acc: {test_accuracy}")
             writer.add_scalar("Train Loss", train_loss, t)
             writer.add_scalar("Test Loss", test_loss, t)
