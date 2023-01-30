@@ -1,39 +1,31 @@
+TODO: JUST MAKE THIS A FUNCTION PACKAGE
+
 # Meta-Learning
 
-A reimplementation of some popular approaches
-1. [Siamese Neural Networks](http://www.cs.toronto.edu/~gkoch/files/msc-thesis.pdf)
-2. [MANN](https://arxiv.org/pdf/1605.06065.pdf)
-3. [Matching Networks](https://arxiv.org/pdf/1606.04080.pdf)
-4. [Prototypical Networks](https://arxiv.org/pdf/1703.05175.pdf)
-5. [WIP: Model Agnostic Meta-Learning](http://proceedings.mlr.press/v70/finn17a/finn17a.pdf)
+A reimplementation of some popular approaches.
 
-Note: Implementations are all a little different, will standardize them one day
+1. [Matching Networks](https://arxiv.org/pdf/1606.04080.pdf)
+2. [Prototypical Networks](https://arxiv.org/pdf/1703.05175.pdf)
+3. [Model Agnostic Meta-Learning](http://proceedings.mlr.press/v70/finn17a/finn17a.pdf)
 
-## Omniglot dataset
-Right now, each model has a different data loading scheme. The Siamese Network model needs the data to be manually downloaded.
+This repo is an exercise for my own education and heavily relies on other people's code. I try to cite the necessary sources when appropriate. Additionally, there are many things that are redudant and un-optimized. One day I hope to go through and make everything pretty, but you know how grad school is.
 
-```
-mkdir data
+A lot of this is slow to run, but simple to read (hopefully).
 
-git clone https://github.com/brendenlake/omniglot.git
-cd omniglot/python
+Methods to implement/test:
 
-cp images_background.zip ../../data
-cp images_evaluation.zip ../../data
-cd ../../data
-
-unzip images_background.zip
-unzip images_evaluation.zip
-
-cd ../
-rm -r omniglot/
-```
+1. Prob MAML
+2. DKT
+3. Conditional Neural Processes
+4. Other cool one's probably
 
 ## Usage
 The following is the general procedure for training each model:
 
 ```
-cd src/<model_type_dir>
+pip install -e .
+
+cd meta_learn/<model_type_dir>
 python train.py
 
 tensorboard --logdir=run/<model_type_name>
@@ -43,6 +35,5 @@ tensorboard --logdir=run/<model_type_name>
 ## Requirements
 - pytorch
 - tensorboard
-- torchmeta
 - python3.8
 
