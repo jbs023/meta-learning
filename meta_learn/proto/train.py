@@ -3,15 +3,12 @@ import torch
 import argparse
 import numpy as np
 import torch.optim as optim
-import torch.nn as nn
 import torch.nn.functional as F
 
 from tqdm import tqdm
-from torch.utils.data import DataLoader
 from meta_learn.proto.model import ProtoNetwork
-from meta_learn.datasets import BatchMetaDataLoader, Omniglot, ClassSplitter, omniglot
+from meta_learn.datasets import BatchMetaDataLoader, get_omniglot
 
-from torchvision.transforms import Compose, ToTensor, Resize
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -121,7 +118,7 @@ def main(config):
     epochs = config.epochs
     path = config.path
     num_batches = config.num_batches
-    logdir = "{}/{}/_{}_{}".format(path, "model", config.num_ways, 1)
+    logdir = "{}/{}/{}_way_{}_shot".format(path, "model", config.num_ways, 1)
     writer = SummaryWriter(logdir)
 
     parent_dir = os.path.abspath(os.path.join(path, os.pardir))
@@ -131,18 +128,7 @@ def main(config):
         download = False
 
 
-    train_dataset = omniglot(data_path,
-                       shots=shot,
-                       ways=way,
-                       shuffle=True,
-                       meta_train=True,
-                       download=download)
-    test_dataset = omniglot(data_path,
-                       shots=shot,
-                       ways=way,
-                       shuffle=True,
-                       meta_val=True,
-                       download=download)
+    train_dataset, test_dataset = get_omniglot(data_path, way, download)
     trainloader = BatchMetaDataLoader(train_dataset, batch_size=bs, shuffle=True, num_workers=4)
     testloader = BatchMetaDataLoader(test_dataset, batch_size=bs, shuffle=True, num_workers=4)
 
