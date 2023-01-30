@@ -116,12 +116,12 @@ def test(dataloader, model, num_batches):
 
 def main(config):
     bs = config.batch_size
-    way = config.num_classes
-    shot = config.num_samples
+    way = config.num_ways
+    shot = config.num_shots
     epochs = config.epochs
     path = config.path
     num_batches = config.num_batches
-    logdir = "{}/{}/_{}_{}".format(path, "model", config.num_classes, 1)
+    logdir = "{}/{}/_{}_{}".format(path, "model", config.num_ways, 1)
     writer = SummaryWriter(logdir)
 
     parent_dir = os.path.abspath(os.path.join(path, os.pardir))
@@ -148,8 +148,7 @@ def main(config):
 
     model = ProtoNetwork(1, 64)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
-    if torch.cuda.is_available():
-        model.cuda()
+    model.to(device=device)
 
     # Train network
     for t in range(epochs):
@@ -167,8 +166,8 @@ def main(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num_classes", type=int, default=5)
-    parser.add_argument("--num_samples", type=int, default=1)
+    parser.add_argument("--num_ways", type=int, default=5)
+    parser.add_argument("--num_shots", type=int, default=1)
     parser.add_argument("--num_batches", type=int, default=500)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--epochs", type=int, default=100)

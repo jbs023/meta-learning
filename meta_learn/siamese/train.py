@@ -57,9 +57,9 @@ def main(config):
     #Set up config params
     epochs = config.epochs
     batch_size = config.batch_size
-    way = config.num_classes
+    way = config.num_ways
     path = config.path
-    logdir = "{}/{}/_{}_{}".format(path, "model", config.num_classes, 1)
+    logdir = "{}/{}/_{}_{}".format(path, "model", config.num_ways, 1)
     writer = SummaryWriter(logdir)
 
     # Download Omniglot Dataset
