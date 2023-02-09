@@ -130,3 +130,4 @@ class CNP(nn.Module):
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         plt.savefig(f"{logdir}/results_{current_time}.png")
+        plt.clf()
