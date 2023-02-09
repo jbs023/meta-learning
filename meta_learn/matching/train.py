@@ -1,26 +1,29 @@
-import os
-import torch
 import argparse
+import os
+
 import numpy as np
-import torch.optim as optim
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from tqdm import tqdm
+import torch.optim as optim
 from meta_learn.datasets import BatchMetaDataLoader, get_omniglot
 from meta_learn.matching.model import MatchingNetwork
 
 from torch.utils.tensorboard import SummaryWriter
 
+from tqdm import tqdm
+
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+
 def pairwise_cosine_similarity(embeddings1, embeddings2, eps=1e-8):
-    sq_norm1 = torch.sum(embeddings1 ** 2, dim=2, keepdim=True)
-    sq_norm2 = torch.sum(embeddings2 ** 2, dim=2).unsqueeze(1)
+    sq_norm1 = torch.sum(embeddings1**2, dim=2, keepdim=True)
+    sq_norm2 = torch.sum(embeddings2**2, dim=2).unsqueeze(1)
     dot_product = torch.bmm(embeddings1, embeddings2.transpose(1, 2))
-    inverse_norm = torch.rsqrt(torch.clamp(sq_norm1 * sq_norm2, min=eps ** 2))
+    inverse_norm = torch.rsqrt(torch.clamp(sq_norm1 * sq_norm2, min=eps**2))
     return dot_product * inverse_norm
+
 
 def matching_log_probas(embeddings, targets, test_embeddings, num_classes, eps=1e-8):
     batch_size, num_samples, _ = test_embeddings.shape
@@ -36,6 +39,7 @@ def matching_log_probas(embeddings, targets, test_embeddings, num_classes, eps=1
 
     return torch.log(sum_exp) + max_similarities - logsumexp
 
+
 def train(dataloader, model, optimizer, num_batches):
     avg_loss = list()
 
@@ -43,20 +47,19 @@ def train(dataloader, model, optimizer, num_batches):
         for batch_idx, batch in enumerate(pbar):
             model.zero_grad()
 
-            train_inputs, train_targets = batch['train']
+            train_inputs, train_targets = batch["train"]
             train_inputs = train_inputs.to(device=device)
             train_targets = train_targets.to(device=device)
             train_embeddings = model(train_inputs)
 
-            test_inputs, test_targets = batch['test']
+            test_inputs, test_targets = batch["test"]
             test_inputs = test_inputs.to(device=device)
             test_targets = test_targets.to(device=device)
             test_embeddings = model(test_inputs)
 
-            logits = matching_log_probas(train_embeddings,
-                                        train_targets,
-                                        test_embeddings,
-                                        5)
+            logits = matching_log_probas(
+                train_embeddings, train_targets, test_embeddings, 5
+            )
             loss = F.nll_loss(logits, test_targets)
 
             # Compute prediction error
@@ -78,20 +81,19 @@ def test(dataloader, model, num_batches):
     avg_loss = list()
     with torch.no_grad():
         for batch_idx, batch in enumerate(dataloader):
-            train_inputs, train_targets = batch['train']
+            train_inputs, train_targets = batch["train"]
             train_inputs = train_inputs.to(device=device)
             train_targets = train_targets.to(device=device)
             train_embeddings = model(train_inputs)
 
-            test_inputs, test_targets = batch['test']
+            test_inputs, test_targets = batch["test"]
             test_inputs = test_inputs.to(device=device)
             test_targets = test_targets.to(device=device)
             test_embeddings = model(test_inputs)
 
-            logits = matching_log_probas(train_embeddings,
-                                        train_targets,
-                                        test_embeddings,
-                                        5)
+            logits = matching_log_probas(
+                train_embeddings, train_targets, test_embeddings, 5
+            )
             loss = F.nll_loss(logits, test_targets)
 
             avg_loss.append(loss.detach().item())
@@ -123,11 +125,15 @@ def main(config):
         download = False
 
     train_dataset, test_dataset = get_omniglot(data_path, way, download)
-    trainloader = BatchMetaDataLoader(train_dataset, batch_size=bs, shuffle=True, num_workers=4)
-    testloader = BatchMetaDataLoader(test_dataset, batch_size=bs, shuffle=True, num_workers=4)
+    trainloader = BatchMetaDataLoader(
+        train_dataset, batch_size=bs, shuffle=True, num_workers=4
+    )
+    testloader = BatchMetaDataLoader(
+        test_dataset, batch_size=bs, shuffle=True, num_workers=4
+    )
 
     model = MatchingNetwork(1, 64)
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
     model.to(device=device)
 
     # Train network
@@ -138,7 +144,9 @@ def main(config):
         # Test neural network
         if t % config.log_every == 0:
             test_accuracy, test_loss = test(testloader, model, num_batches)
-            print(f"Train Loss: {train_loss}    Test Loss: {test_loss}      Test Acc: {test_accuracy}")
+            print(
+                f"Train Loss: {train_loss}    Test Loss: {test_loss}      Test Acc: {test_accuracy}"
+            )
             writer.add_scalar("Train Loss", train_loss, t)
             writer.add_scalar("Test Loss", test_loss, t)
             writer.add_scalar("Meta-Test Accuracy", test_accuracy, t)
