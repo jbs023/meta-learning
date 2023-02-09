@@ -7,166 +7,14 @@ import numpy as np
 import seaborn as sns
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.autograd import Variable
+
+from meta_learn.dkt.model import ExactGPModel, FeatureExtractor
+from meta_learn.dkt.sine_dataset import Task_Distribution
 
 sns.set()
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
-import torch.nn as nn
-
-
-class Sine_Task:
-    """
-    A sine wave data distribution object with interfaces designed for MAML.
-    """
-
-    def __init__(self, amplitude, phase, xmin, xmax):
-        self.amplitude = amplitude
-        self.phase = phase
-        self.xmin = xmin
-        self.xmax = xmax
-
-    def true_function(self, x):
-        """
-        Compute the true function on the given x.
-        """
-        return self.amplitude * np.sin(self.phase + x)
-
-    def sample_data(self, size=1, noise=0.0, sort=False):
-        """
-        Sample data from this task.
-
-        returns:
-            x: the feature vector of length size
-            y: the target vector of length size
-        """
-        x = np.random.uniform(self.xmin, self.xmax, size)
-        if sort:
-            x = np.sort(x)
-        y = self.true_function(x)
-
-        if noise > 0:
-            y += np.random.normal(loc=0.0, scale=noise, size=y.shape)
-
-        x = torch.tensor(x, dtype=torch.float).unsqueeze(1)
-        y = torch.tensor(y, dtype=torch.float)
-        return x, y
-
-
-class Cosine_Task:
-    """
-    A sine wave data distribution object with interfaces designed for MAML.
-    """
-
-    def __init__(self, amplitude, phase, xmin, xmax):
-        self.amplitude = amplitude
-        self.phase = phase
-        self.xmin = xmin
-        self.xmax = xmax
-
-    def true_function(self, x):
-        """
-        Compute the true function on the given x.
-        """
-        return self.amplitude * np.cos(self.phase + x)
-
-    def sample_data(self, size=1, noise=0.0, sort=False):
-        """
-        Sample data from this task.
-
-        returns:
-            x: the feature vector of length size
-            y: the target vector of length size
-        """
-        x = np.random.uniform(self.xmin, self.xmax, size)
-        if sort:
-            x = np.sort(x)
-        y = self.true_function(x)
-        if noise > 0:
-            y += np.random.normal(loc=0.0, scale=noise, size=y.shape)
-        x = torch.tensor(x, dtype=torch.float).unsqueeze(1)
-        y = torch.tensor(y, dtype=torch.float)
-        return x, y
-
-
-class Task_Distribution:
-    """
-    The task distribution for sine regression tasks for MAML
-    """
-
-    def __init__(
-        self,
-        amplitude_min,
-        amplitude_max,
-        phase_min,
-        phase_max,
-        x_min,
-        x_max,
-        family="sine",
-    ):
-        self.amplitude_min = amplitude_min
-        self.amplitude_max = amplitude_max
-        self.phase_min = phase_min
-        self.phase_max = phase_max
-        self.x_min = x_min
-        self.x_max = x_max
-        self.family = family
-
-    def sample_task(self):
-        """
-        Sample from the task distribution.
-
-        returns:
-            Sine_Task object
-        """
-        amplitude = np.random.uniform(self.amplitude_min, self.amplitude_max)
-        phase = np.random.uniform(self.phase_min, self.phase_max)
-        if self.family == "sine":
-            return Sine_Task(amplitude, phase, self.x_min, self.x_max)
-        elif self.family == "cosine":
-            return Cosine_Task(amplitude, phase, self.x_min, self.x_max)
-        else:
-            return None
-
-
-class Feature(nn.Module):
-    def __init__(self):
-        super(Feature, self).__init__()
-        self.layer1 = nn.Linear(1, 40)
-        self.layer2 = nn.Linear(40, 40)
-        # self.layer3 = nn.Linear(40,1)
-
-    def forward(self, x):
-        out = F.relu(self.layer1(x))
-        out = F.relu(self.layer2(out))
-        # out = self.layer3(out)
-        return out
-
-
-class ExactGPModel(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood):
-        super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
-        self.mean_module = gpytorch.means.ConstantMean()
-        self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
-        # self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel(nu=2.5))
-        # self.covar_module = gpytorch.kernels.SpectralMixtureKernel(
-        #     num_mixtures=4, ard_num_dims=40
-        # )
-        # self.feature_extractor = feature_extractor
-
-    def forward(self, x):
-        # z = self.feature_extractor(x)
-        # z_normalized = z - z.min(0)[0]
-        # z_normalized = 2 * (z_normalized / z_normalized.max(0)[0]) - 1
-        # x_normalized = x - x.min(0)[0]
-        # x_normalized = 2 * (x_normalized / x_normalized.max(0)[0]) - 1
-        mean_x = self.mean_module(x)
-        covar_x = self.covar_module(x)
-        return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
 
 def main():
@@ -176,7 +24,9 @@ def main():
     train_range = (-5.0, 5.0)
     test_range = (-5.0, 5.0)  # This must be (-5, +10) for the out-of-range condition
     criterion = nn.MSELoss()
-    tasks = Task_Distribution(
+
+    #Set up datasets
+    task_train = Task_Distribution(
         amplitude_min=0.1,
         amplitude_max=5.0,
         phase_min=0.0,
@@ -185,7 +35,18 @@ def main():
         x_max=train_range[1],
         family="sine",
     )
-    net = Feature()
+    tasks_test = Task_Distribution(
+        amplitude_min=0.1,
+        amplitude_max=5.0,
+        phase_min=0.0,
+        phase_max=np.pi,
+        x_min=test_range[0],
+        x_max=test_range[1],
+        family="sine",
+    )
+
+
+    net = FeatureExtractor()
     likelihood = gpytorch.likelihoods.GaussianLikelihood()
     dummy_inputs = torch.zeros([n_shot_train, 40])
     dummy_labels = torch.zeros([n_shot_train])
@@ -206,7 +67,7 @@ def main():
     tot_iterations = 50000  # 50000
     for epoch in range(tot_iterations):
         optimizer.zero_grad()
-        inputs, labels = tasks.sample_task().sample_data(n_shot_train, noise=0.1)
+        inputs, labels = task_train.sample_task().sample_data(n_shot_train, noise=0.1)
         z = net(inputs)
         gp.set_train_data(inputs=z, targets=labels)
         predictions = gp(z)
@@ -228,15 +89,6 @@ def main():
             )
 
     ## Test phase on a new sine/cosine wave
-    tasks_test = Task_Distribution(
-        amplitude_min=0.1,
-        amplitude_max=5.0,
-        phase_min=0.0,
-        phase_max=np.pi,
-        x_min=test_range[0],
-        x_max=test_range[1],
-        family="sine",
-    )
     print("Test, please wait...")
 
     likelihood.eval()
@@ -274,6 +126,7 @@ def main():
     print("Average MSE: " + str(np.mean(mse_list)) + " +- " + str(np.std(mse_list)))
     print("-------------------")
 
+    #Plotting
     for i in range(10):
         x_all, y_all = sample_task.sample_data(sample_size, noise=0.1, sort=True)
         query_indices = np.sort(indices[n_shot_test:])
@@ -296,6 +149,7 @@ def main():
 
         # Plot
         fig, ax = plt.subplots()
+
         # true-curve
         true_curve = np.linspace(train_range[0], train_range[1], 1000)
         true_curve = [sample_task.true_function(x) for x in true_curve]
@@ -315,10 +169,11 @@ def main():
                 linestyle="--",
                 linewidth=2.0,
             )
+
         # query points (ground-truth)
         # ax.scatter(x_query, y_query, color='blue')
+        
         # query points (predicted)
-
         ax.plot(np.squeeze(x_all), mean.detach().numpy(), color="red", linewidth=2.0)
         ax.fill_between(
             np.squeeze(x_all),
@@ -339,4 +194,5 @@ def main():
 
 
 if __name__ == "__main__":
+    #TODO: Make this configurable
     main()
