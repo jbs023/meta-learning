@@ -1,7 +1,12 @@
+#This code is a modified version of: https://github.com/deepmind/neural-processes
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
+
+import matplotlib.pyplot as plt
+from datetime import datetime
 
 class CNP_encoder(nn.Module):
     def __init__(self, input_size, hidden_size=128):
@@ -94,11 +99,7 @@ class CNP(nn.Module):
         loss = -torch.sum(mvn.log_prob(target_y) * target_mask.float())
         return loss
     
-    def plot_functions(self, target_x, target_y, context_x, context_y, pred_y, var, logdir):
-        '''WIP: Needs to be cleaned up'''
-        import matplotlib.pyplot as plt
-        from datetime import datetime
-
+    def plot_functions(self, target_x, target_y, context_x, context_y, pred_y, var, logdir, id):
         #Get indices to sort array by increasing values
         pred_y = pred_y.unsqueeze(-1)
         var = var.unsqueeze(-1)
@@ -129,5 +130,5 @@ class CNP(nn.Module):
         ax = plt.gca()
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
-        plt.savefig(f"{logdir}/results_{current_time}.png")
+        plt.savefig(f"{logdir}/results_{current_time}_{id}.png")
         plt.clf()

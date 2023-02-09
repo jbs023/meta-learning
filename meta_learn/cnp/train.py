@@ -99,8 +99,8 @@ def test(dataloader, model, num_batches, logdir):
                 loss = model.loss_fn(test_targets, target_mask)
 
                 #Plot one function
-                if count == 0:
-                    model.plot_functions(train_inputs.cpu(), train_targets.cpu(), test_inputs.cpu(), test_targets.cpu(), mu.cpu(), sigma.cpu(), logdir)
+                if count <= 4:
+                    model.plot_functions(train_inputs.cpu(), train_targets.cpu(), test_inputs.cpu(), test_targets.cpu(), mu.cpu(), sigma.cpu(), logdir, count)
                     count += 1
 
                 # Compute prediction error
