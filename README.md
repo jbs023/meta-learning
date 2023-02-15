@@ -16,8 +16,7 @@ A lot of this is slow to run, but simple to read (hopefully).
 
 Methods to implement/test:
 
-1. Prob MAML
-2. Other cool one's probably
+1. TBD
 
 ## Usage
 The following is the general procedure for training each model:
