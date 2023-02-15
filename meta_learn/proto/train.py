@@ -1,3 +1,18 @@
+<<<<<<< HEAD
+import argparse
+import os
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+import torch.optim as optim
+from meta_learn.datasets import BatchMetaDataLoader, get_omniglot
+from meta_learn.proto.model import ProtoNetwork
+
+from torch.utils.tensorboard import SummaryWriter
+
+from tqdm import tqdm
+=======
 import os
 import torch
 import argparse
@@ -11,10 +26,15 @@ from meta_learn.datasets import BatchMetaDataLoader, get_omniglot
 
 
 from torch.utils.tensorboard import SummaryWriter
+>>>>>>> main
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+<<<<<<< HEAD
+
+=======
+>>>>>>> main
 def get_num_samples(targets, num_classes, dtype=None):
     batch_size = targets.size(0)
     with torch.no_grad():
@@ -26,7 +46,11 @@ def get_num_samples(targets, num_classes, dtype=None):
 
 def get_prototypes(embeddings, targets, num_classes):
     batch_size, embedding_size = embeddings.size(0), embeddings.size(-1)
+<<<<<<< HEAD
+
+=======
     
+>>>>>>> main
     num_samples = get_num_samples(targets, num_classes, dtype=embeddings.dtype)
     num_samples.unsqueeze_(-1)
     num_samples = torch.max(num_samples, torch.ones_like(num_samples))
@@ -39,6 +63,22 @@ def get_prototypes(embeddings, targets, num_classes):
 
 
 def prototypical_loss(prototypes, embeddings, targets, **kwargs):
+<<<<<<< HEAD
+    squared_distances = torch.sum(
+        (prototypes.unsqueeze(2) - embeddings.unsqueeze(1)) ** 2, dim=-1
+    )
+    return F.cross_entropy(-squared_distances, targets, **kwargs)
+
+
+def get_accuracy(prototypes, embeddings, targets):
+    sq_distances = torch.sum(
+        (prototypes.unsqueeze(1) - embeddings.unsqueeze(2)) ** 2, dim=-1
+    )
+    _, predictions = torch.min(sq_distances, dim=-1)
+    return torch.mean(predictions.eq(targets).float())
+
+
+=======
     squared_distances = torch.sum((prototypes.unsqueeze(2)
         - embeddings.unsqueeze(1)) ** 2, dim=-1)
     return F.cross_entropy(-squared_distances, targets, **kwargs)
@@ -49,6 +89,7 @@ def get_accuracy(prototypes, embeddings, targets):
     _, predictions = torch.min(sq_distances, dim=-1)
     return torch.mean(predictions.eq(targets).float())
 
+>>>>>>> main
 def train(dataloader, model, optimizer, num_batches):
     avg_loss = list()
 
@@ -56,12 +97,20 @@ def train(dataloader, model, optimizer, num_batches):
         for batch_idx, batch in enumerate(pbar):
             model.zero_grad()
 
+<<<<<<< HEAD
+            train_inputs, train_targets = batch["train"]
+=======
             train_inputs, train_targets = batch['train']
+>>>>>>> main
             train_inputs = train_inputs.to(device=device)
             train_targets = train_targets.to(device=device)
             train_embeddings = model(train_inputs)
 
+<<<<<<< HEAD
+            test_inputs, test_targets = batch["test"]
+=======
             test_inputs, test_targets = batch['test']
+>>>>>>> main
             test_inputs = test_inputs.to(device=device)
             test_targets = test_targets.to(device=device)
             test_embeddings = model(test_inputs)
@@ -88,12 +137,20 @@ def test(dataloader, model, num_batches):
         for batch_idx, batch in enumerate(dataloader):
             model.zero_grad()
 
+<<<<<<< HEAD
+            train_inputs, train_targets = batch["train"]
+=======
             train_inputs, train_targets = batch['train']
+>>>>>>> main
             train_inputs = train_inputs.to(device=device)
             train_targets = train_targets.to(device=device)
             train_embeddings = model(train_inputs)
 
+<<<<<<< HEAD
+            test_inputs, test_targets = batch["test"]
+=======
             test_inputs, test_targets = batch['test']
+>>>>>>> main
             test_inputs = test_inputs.to(device=device)
             test_targets = test_targets.to(device=device)
             test_embeddings = model(test_inputs)
@@ -127,6 +184,18 @@ def main(config):
     if os.path.exists(f"{data_path}/omniglot"):
         download = False
 
+<<<<<<< HEAD
+    train_dataset, test_dataset = get_omniglot(data_path, way, download)
+    trainloader = BatchMetaDataLoader(
+        train_dataset, batch_size=bs, shuffle=True, num_workers=4
+    )
+    testloader = BatchMetaDataLoader(
+        test_dataset, batch_size=bs, shuffle=True, num_workers=4
+    )
+
+    model = ProtoNetwork(1, 64)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+=======
 
     train_dataset, test_dataset = get_omniglot(data_path, way, download)
     trainloader = BatchMetaDataLoader(train_dataset, batch_size=bs, shuffle=True, num_workers=4)
@@ -134,6 +203,7 @@ def main(config):
 
     model = ProtoNetwork(1, 64)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
+>>>>>>> main
     model.to(device=device)
 
     # Train network
@@ -144,7 +214,13 @@ def main(config):
         # Test neural network
         if t % config.log_every == 0:
             test_accuracy, test_loss = test(testloader, model, num_batches)
+<<<<<<< HEAD
+            print(
+                f"Train Loss: {train_loss}    Test Loss: {test_loss}      Test Acc: {test_accuracy}"
+            )
+=======
             print(f"Train Loss: {train_loss}    Test Loss: {test_loss}      Test Acc: {test_accuracy}")
+>>>>>>> main
             writer.add_scalar("Train Loss", train_loss, t)
             writer.add_scalar("Test Loss", test_loss, t)
             writer.add_scalar("Meta-Test Accuracy", test_accuracy, t)

@@ -1,17 +1,17 @@
-from collections import OrderedDict
-import os
-import torch
 import argparse
+import os
+from collections import OrderedDict
+
 import numpy as np
-import torch.optim as optim
+import torch
 import torch.nn.functional as F
-
-from tqdm import tqdm
-from meta_learn.maml.model import ConvMaml
+import torch.optim as optim
 from meta_learn.datasets import BatchMetaDataLoader, get_omniglot
-
+from meta_learn.maml.model import ConvMaml
 
 from torch.utils.tensorboard import SummaryWriter
+
+from tqdm import tqdm
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -20,17 +20,14 @@ def get_accuracy(logits, targets):
     _, predictions = torch.max(logits, dim=-1)
     return torch.mean(predictions.eq(targets).float())
 
-def gradient_update_parameters(model,
-                               loss,
-                               params=None,
-                               step_size=0.5,
-                               first_order=False):
+
+def gradient_update_parameters(
+    model, loss, params=None, step_size=0.5, first_order=False
+):
     if params is None:
         params = OrderedDict(model.meta_named_parameters())
 
-    grads = torch.autograd.grad(loss,
-                                params.values(),
-                                create_graph=not first_order)
+    grads = torch.autograd.grad(loss, params.values(), create_graph=not first_order)
 
     updated_params = OrderedDict()
 
@@ -53,27 +50,29 @@ def train(dataloader, model, optimizer, num_batches, batch_size, step_size):
         for batch_idx, batch in enumerate(pbar):
             model.zero_grad()
 
-            train_inputs, train_targets = batch['train']
+            train_inputs, train_targets = batch["train"]
             train_inputs = train_inputs.to(device=device)
             train_targets = train_targets.to(device=device)
 
-            test_inputs, test_targets = batch['test']
+            test_inputs, test_targets = batch["test"]
             test_inputs = test_inputs.to(device=device)
             test_targets = test_targets.to(device=device)
 
-            outer_loss = torch.tensor(0., device=device)
-            accuracy = torch.tensor(0., device=device)
-            for task_idx, (train_input, train_target, test_input,
-                    test_target) in enumerate(zip(train_inputs, train_targets,
-                    test_inputs, test_targets)):
+            outer_loss = torch.tensor(0.0, device=device)
+            accuracy = torch.tensor(0.0, device=device)
+            for task_idx, (
+                train_input,
+                train_target,
+                test_input,
+                test_target,
+            ) in enumerate(zip(train_inputs, train_targets, test_inputs, test_targets)):
                 train_logit = model(train_input)
                 inner_loss = F.cross_entropy(train_logit, train_target)
 
                 model.zero_grad()
-                params = gradient_update_parameters(model,
-                                                    inner_loss,
-                                                    step_size=step_size,
-                                                    first_order=True)
+                params = gradient_update_parameters(
+                    model, inner_loss, step_size=step_size, first_order=True
+                )
 
                 test_logit = model(test_input, params=params)
                 outer_loss += F.cross_entropy(test_logit, test_target)
@@ -89,7 +88,7 @@ def train(dataloader, model, optimizer, num_batches, batch_size, step_size):
 
             avg_loss.append(outer_loss.detach().item())
             avg_acc.append(accuracy.item())
-            pbar.set_postfix(accuracy='{0:.4f}'.format(accuracy.item()))
+            pbar.set_postfix(accuracy="{0:.4f}".format(accuracy.item()))
             if batch_idx > num_batches:
                 break
 
@@ -104,27 +103,29 @@ def test(dataloader, model, num_batches, batch_size, step_size):
         for batch_idx, batch in enumerate(pbar):
             model.zero_grad()
 
-            train_inputs, train_targets = batch['train']
+            train_inputs, train_targets = batch["train"]
             train_inputs = train_inputs.to(device=device)
             train_targets = train_targets.to(device=device)
 
-            test_inputs, test_targets = batch['test']
+            test_inputs, test_targets = batch["test"]
             test_inputs = test_inputs.to(device=device)
             test_targets = test_targets.to(device=device)
 
-            outer_loss = torch.tensor(0., device=device)
-            accuracy = torch.tensor(0., device=device)
-            for task_idx, (train_input, train_target, test_input,
-                    test_target) in enumerate(zip(train_inputs, train_targets,
-                    test_inputs, test_targets)):
+            outer_loss = torch.tensor(0.0, device=device)
+            accuracy = torch.tensor(0.0, device=device)
+            for task_idx, (
+                train_input,
+                train_target,
+                test_input,
+                test_target,
+            ) in enumerate(zip(train_inputs, train_targets, test_inputs, test_targets)):
                 train_logit = model(train_input)
                 inner_loss = F.cross_entropy(train_logit, train_target)
 
                 model.zero_grad()
-                params = gradient_update_parameters(model,
-                                                    inner_loss,
-                                                    step_size=step_size,
-                                                    first_order=True)
+                params = gradient_update_parameters(
+                    model, inner_loss, step_size=step_size, first_order=True
+                )
 
                 test_logit = model(test_input, params=params)
                 outer_loss += F.cross_entropy(test_logit, test_target)
@@ -163,8 +164,12 @@ def main(config):
         download = False
 
     train_dataset, test_dataset = get_omniglot(data_path, way, download)
-    trainloader = BatchMetaDataLoader(train_dataset, batch_size=bs, shuffle=True, num_workers=4)
-    testloader = BatchMetaDataLoader(test_dataset, batch_size=bs, shuffle=True, num_workers=4)
+    trainloader = BatchMetaDataLoader(
+        train_dataset, batch_size=bs, shuffle=True, num_workers=4
+    )
+    testloader = BatchMetaDataLoader(
+        test_dataset, batch_size=bs, shuffle=True, num_workers=4
+    )
 
     model = ConvMaml(1, way, 64)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
@@ -173,12 +178,16 @@ def main(config):
     # Train network
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
-        train_acc, train_loss = train(trainloader, model, optimizer, num_batches, bs, ss)
+        train_acc, train_loss = train(
+            trainloader, model, optimizer, num_batches, bs, ss
+        )
 
         # Test neural network
         if t % config.log_every == 0:
             test_accuracy, test_loss = test(testloader, model, num_batches, bs, ss)
-            print(f"Train Loss: {train_loss}    Train Acc: {train_acc}      Test Loss: {test_loss}      Test Acc: {test_accuracy}")
+            print(
+                f"Train Loss: {train_loss}    Train Acc: {train_acc}      Test Loss: {test_loss}      Test Acc: {test_accuracy}"
+            )
             writer.add_scalar("Train Loss", train_loss, t)
             writer.add_scalar("Test Loss", test_loss, t)
             writer.add_scalar("Meta-Test Accuracy", test_accuracy, t)
@@ -193,5 +202,5 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--log_every", type=int, default=1)
     parser.add_argument("--path", type=str, default=os.getcwd())
-    parser.add_argument('--step-size', type=float, default=0.4)
+    parser.add_argument("--step-size", type=float, default=0.4)
     main(parser.parse_args())
