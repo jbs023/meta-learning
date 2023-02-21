@@ -26,7 +26,7 @@ def main():
     criterion = nn.MSELoss()
 
     #Set up datasets
-    task_train = Task_Distribution(
+    train_task = Task_Distribution(
         amplitude_min=0.1,
         amplitude_max=5.0,
         phase_min=0.0,
@@ -35,7 +35,7 @@ def main():
         x_max=train_range[1],
         family="sine",
     )
-    tasks_test = Task_Distribution(
+    test_task = Task_Distribution(
         amplitude_min=0.1,
         amplitude_max=5.0,
         phase_min=0.0,
@@ -64,29 +64,37 @@ def main():
     gp.train()
     net.train()
 
-    tot_iterations = 50000  # 50000
+    tot_iterations = 50000
+    mse_list = list()
+    loss_list = list()
     for epoch in range(tot_iterations):
         optimizer.zero_grad()
-        inputs, labels = task_train.sample_task().sample_data(n_shot_train, noise=0.1)
+        inputs, labels = train_task.sample_task().sample_data(n_shot_train, noise=0.1)
         z = net(inputs)
+        labels = labels.squeeze()
         gp.set_train_data(inputs=z, targets=labels)
         predictions = gp(z)
         loss = -mll(predictions, gp.train_targets)
         loss.backward()
         optimizer.step()
         mse = criterion(predictions.mean, labels)
+        loss_list.append(loss.item())
+        mse_list.append(mse.item())
+
         # ---- print some stuff ----
         if epoch % 100 == 0:
             print(
                 "[%d] - Loss: %.3f  MSE: %.3f  lengthscale: %.3f   noise: %.3f"
                 % (
                     epoch,
-                    loss.item(),
-                    mse.item(),
+                    np.mean(loss_list),
+                    np.mean(mse_list),
                     0.0,  # gp.covar_module.base_kernel.lengthscale.item(),
                     gp.likelihood.noise.item(),
                 )
             )
+            mse_list = list()
+            loss_list = list()
 
     ## Test phase on a new sine/cosine wave
     print("Test, please wait...")
@@ -96,8 +104,8 @@ def main():
     tot_iterations = 500
     mse_list = list()
     for epoch in range(tot_iterations):
-        sample_task = tasks_test.sample_task()
-        sample_size = 200
+        sample_task = test_task.sample_task()
+        sample_size = n_shot_train
         x_all, y_all = sample_task.sample_data(sample_size, noise=0.1, sort=True)
         indices = np.arange(sample_size)
         np.random.shuffle(indices)
@@ -112,7 +120,7 @@ def main():
         # Feed the support set
         z_support = net(x_support).detach()
         gp.train()
-        gp.set_train_data(inputs=z_support, targets=y_support, strict=False)
+        gp.set_train_data(inputs=z_support, targets=y_support.squeeze(), strict=False)
         gp.eval()
 
         # Evaluation on query set
@@ -137,7 +145,7 @@ def main():
 
         z_support = net(x_support).detach()
         gp.train()
-        gp.set_train_data(inputs=z_support, targets=y_support, strict=False)
+        gp.set_train_data(inputs=z_support, targets=y_support.squeeze(), strict=False)
         gp.eval()
 
         # Evaluation on all data
@@ -171,8 +179,8 @@ def main():
             )
 
         # query points (ground-truth)
-        # ax.scatter(x_query, y_query, color='blue')
-        
+        ax.scatter(x_query, y_query, color='red')        
+
         # query points (predicted)
         ax.plot(np.squeeze(x_all), mean.detach().numpy(), color="red", linewidth=2.0)
         ax.fill_between(

@@ -20,6 +20,10 @@ class CNP_encoder(nn.Module):
         
     def forward(self, context_x, context_y):
         #Concat important information together
+        #NOTE: The code only support batche sizes of one, which need to be expanded
+        #to work with pytorch
+        context_x = context_x.unsqueeze(0)
+        context_y = context_y.unsqueeze(0)
         x = torch.cat([context_x, context_y], dim=-1)
 
         #NOTE: This is for conceptual clarity not computational efficiency.
@@ -53,9 +57,10 @@ class CNP_decoder(nn.Module):
         
     def forward(self, representation, target_x, shots):
         #Expand the representation, so it can be used for each shot
-        representation = torch.tile(representation.unsqueeze(1), (1, shots, 1))
+        representation = torch.tile(representation, (1, shots, 1))
 
         #Concat representation and target values
+        target_x = target_x.unsqueeze(0)
         x = torch.concat([representation, target_x], dim=-1)
 
         #Forward pass through the decoder
@@ -88,7 +93,7 @@ class CNP(nn.Module):
         encoded_values = self.encoder(context_x, context_y)
         
         #Decode
-        mu, sigma = self.decoder(encoded_values, target_x, context_x.shape[1])        
+        mu, sigma = self.decoder(encoded_values, target_x, context_x.shape[0])        
         return mu, sigma
         
     def loss_fn(self, target_y, target_mask):
@@ -98,37 +103,3 @@ class CNP(nn.Module):
         mvn = Normal(self.mu, self.sigma)
         loss = -torch.sum(mvn.log_prob(target_y) * target_mask.float())
         return loss
-    
-    def plot_functions(self, target_x, target_y, context_x, context_y, pred_y, var, logdir, id):
-        #Get indices to sort array by increasing values
-        pred_y = pred_y.unsqueeze(-1)
-        var = var.unsqueeze(-1)
-        target_x, indices = torch.sort(target_x, dim=1)
-
-        #Re-order arrays using indices
-        target_y = torch.gather(target_y, 1, indices)
-        pred_y = torch.gather(pred_y, 1, indices)
-        var = torch.gather(var, 1, indices)
-
-        #Plot values
-        plt.plot(target_x[0], target_y[0], 'k:', linewidth=2)
-        plt.plot(target_x[0], pred_y[0], 'b', linewidth=2)
-        plt.plot(context_x[0], context_y[0], 'ko', markersize=10)
-        plt.fill_between(
-            target_x[0, :, 0],
-            pred_y[0, :, 0] - var[0, :, 0],
-            pred_y[0, :, 0] + var[0, :, 0],
-            alpha=0.2,
-            facecolor='#65c9f7',
-            interpolate=True)
-
-        # Make the plot pretty
-        # plt.yticks([-2, 0, 2], fontsize=16)
-        # plt.xticks([-2, 0, 2], fontsize=16)
-        # plt.ylim([-2, 2])
-        plt.grid('off')
-        ax = plt.gca()
-        now = datetime.now()
-        current_time = now.strftime("%H:%M:%S")
-        plt.savefig(f"{logdir}/results_{current_time}_{id}.png")
-        plt.clf()

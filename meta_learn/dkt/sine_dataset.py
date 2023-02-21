@@ -38,7 +38,7 @@ class Sine_Task:
             y += np.random.normal(loc=0.0, scale=noise, size=y.shape)
 
         x = torch.tensor(x, dtype=torch.float).unsqueeze(1)
-        y = torch.tensor(y, dtype=torch.float)
+        y = torch.tensor(y, dtype=torch.float).unsqueeze(1)
         return x, y
 
 
