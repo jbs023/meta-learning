@@ -202,6 +202,13 @@ def main():
         # ax.scatter(x_query, y_query, color='blue')
         
         # query points (predicted)
+        x_all = x_all.cpu()
+        mean = mean.cpu()
+        lower = lower.cpu()
+        upper = upper.cpu()
+        x_support = x_support.cpu()
+        y_support = y_support.cpu()
+
         ax.plot(np.squeeze(x_all), mean.detach().numpy(), color="red", linewidth=2.0)
         ax.fill_between(
             np.squeeze(x_all),
@@ -211,7 +218,7 @@ def main():
             color="red",
         )
         # support points
-        ax.scatter(x_support, y_support, color="darkblue", marker="*", s=50, zorder=10)
+        ax.scatter(x_support.detach().numpy(), y_support.detach().numpy(), color="darkblue", marker="*", s=50, zorder=10)
 
         # all points
         # ax.scatter(x_all.numpy(), y_all.numpy())
