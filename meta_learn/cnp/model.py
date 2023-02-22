@@ -5,9 +5,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-import matplotlib.pyplot as plt
-from datetime import datetime
-
 class CNP_encoder(nn.Module):
     def __init__(self, input_size, hidden_size=128):
         super(CNP_encoder, self).__init__()

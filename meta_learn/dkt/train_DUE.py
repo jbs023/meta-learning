@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from gpytorch.mlls import VariationalELBO
 from meta_learn.dkt.model import ApproximateGPModel, FCResNet, initial_values
-from meta_learn.dkt.sine_dataset import Task_Distribution
+from meta_learn.sine_dataset import Task_Distribution
 
 sns.set()
 
@@ -71,7 +71,9 @@ def main():
         likelihood = likelihood.cuda()
         net = net.cuda()
 
-    tot_iterations = 50000  # 50000
+    tot_iterations = 500  # 50000
+    mse_list = list()
+    loss_list = list()
     for epoch in range(tot_iterations):
         optimizer.zero_grad()
         inputs, labels = task_train.sample_task().sample_data(n_shot_train, noise=0.1)
@@ -81,12 +83,15 @@ def main():
         
         z = net(inputs)
         # gp.set_train_data(inputs=z, targets=labels)
+        print(z.shape, labels.shape)
         fantasy_gp = gp.get_fantasy_model(inputs=z, targets=labels)
         predictions = gp(z)
         loss = -elbo(predictions, labels)
         loss.backward()
         optimizer.step()
         mse = criterion(predictions.mean, labels)
+        loss_list.append(loss.item())
+        mse_list.append(mse.item())
 
         # ---- print some stuff ----
         if epoch % 100 == 0:
@@ -94,12 +99,14 @@ def main():
                 "[%d] - Loss: %.3f  MSE: %.3f  lengthscale: %.3f   noise: %.3f"
                 % (
                     epoch,
-                    loss.item(),
-                    mse.item(),
+                    np.mean(loss_list),
+                    np.mean(mse_list),
                     0.0,  # gp.covar_module.base_kernel.lengthscale.item(),
                     gp.likelihood.noise.item(),
                 )
             )
+            mse_list = list()
+            loss_list = list()
 
     ## Test phase on a new sine/cosine wave
     print("Test, please wait...")

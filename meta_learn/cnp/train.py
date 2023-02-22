@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from meta_learn.cnp.model import CNP
-from meta_learn.dkt.sine_dataset import Task_Distribution
+from meta_learn.sine_dataset import Task_Distribution
 from torch.distributions import Normal
 
 from torch.utils.tensorboard import SummaryWriter
@@ -19,11 +19,10 @@ from tqdm import tqdm
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-#TODO: Something feels off about how this perfoms, it just seems wrong.
 def main(config):
     path = config.path
-    n_shot_train = 20
-    n_shot_test = 10
+    n_shot_train = 40
+    n_shot_test = int(n_shot_train/2)
     train_range = (-5.0, 5.0)
     test_range = (-5.0, 5.0)  # This must be (-5, +10) for the out-of-range condition
     logdir = "{}/{}/{}_shot".format(path, "cnp", n_shot_train)
@@ -48,15 +47,13 @@ def main(config):
         family="sine",
     )
 
-    model = CNP(2, 128)
+    model = CNP(2, 64)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     model.to(device=device)
-    dummy_inputs = torch.zeros([n_shot_train, 40])
-    dummy_labels = torch.zeros([n_shot_train])
     criterion = nn.MSELoss()
 
     ## Training
-    tot_iterations = 50000
+    tot_iterations = 10000
     mse_list = list()
     loss_list = list()
     for epoch in range(tot_iterations):

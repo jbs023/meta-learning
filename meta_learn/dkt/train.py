@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from meta_learn.dkt.model import ExactGPModel, FeatureExtractor
-from meta_learn.dkt.sine_dataset import Task_Distribution
+from meta_learn.sine_dataset import Task_Distribution
 
 sns.set()
 
@@ -19,8 +19,8 @@ import numpy as np
 
 def main():
     ## Defining model
-    n_shot_train = 10
-    n_shot_test = 5
+    n_shot_train = 40
+    n_shot_test = int(n_shot_train/2)
     train_range = (-5.0, 5.0)
     test_range = (-5.0, 5.0)  # This must be (-5, +10) for the out-of-range condition
     criterion = nn.MSELoss()
@@ -64,7 +64,7 @@ def main():
     gp.train()
     net.train()
 
-    tot_iterations = 50000
+    tot_iterations = 10000
     mse_list = list()
     loss_list = list()
     for epoch in range(tot_iterations):
@@ -136,6 +136,7 @@ def main():
 
     #Plotting
     for i in range(10):
+        sample_task = test_task.sample_task()
         x_all, y_all = sample_task.sample_data(sample_size, noise=0.1, sort=True)
         query_indices = np.sort(indices[n_shot_test:])
         x_support = x_all[support_indices]
