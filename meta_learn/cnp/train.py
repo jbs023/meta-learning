@@ -17,11 +17,12 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 # Get cpu or gpu device for training.
-device = "cuda" if torch.cuda.is_available() else "cpu"
+# device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu"
 
 def main(config):
     path = config.path
-    n_shot_train = 40
+    n_shot_train = 10
     n_shot_test = int(n_shot_train/2)
     train_range = (-5.0, 5.0)
     test_range = (-5.0, 5.0)  # This must be (-5, +10) for the out-of-range condition
@@ -48,12 +49,12 @@ def main(config):
     )
 
     model = CNP(2, 64)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
     model.to(device=device)
     criterion = nn.MSELoss()
 
     ## Training
-    tot_iterations = 10000
+    tot_iterations = 100000
     mse_list = list()
     loss_list = list()
     for epoch in range(tot_iterations):
@@ -80,7 +81,8 @@ def main(config):
         loss = model.loss_fn(y_query, target_mask)
         loss.backward()
         optimizer.step()
-        mse = criterion(mu, y_query)
+
+        mse = criterion(mu.squeeze(), y_query.squeeze())
         loss_list.append(loss.item())
         mse_list.append(mse.item())
 
@@ -103,9 +105,11 @@ def main(config):
     with torch.no_grad():
         tot_iterations = 500
         mse_list = list()
+        sample_size = 40
+        n_shot_test = 20
         for epoch in range(tot_iterations):
-            x_all, y_all = test_task.sample_task().sample_data(n_shot_train, noise=0.1, sort=True)
-            indices = np.arange(n_shot_train)
+            x_all, y_all = test_task.sample_task().sample_data(sample_size, noise=0.1, sort=True)
+            indices = np.arange(sample_size)
             np.random.shuffle(indices)
             support_indices = np.sort(indices[0:n_shot_test])
 
@@ -119,7 +123,8 @@ def main(config):
             mu, sigma = model(x_support, y_support, x_query)
             model.mu = mu
             model.sigma = sigma
-            mse = criterion(mu, y_query)
+
+            mse = criterion(mu.squeeze(), y_query.squeeze())
             mse_list.append(mse.item())
 
         print("-------------------")
@@ -129,7 +134,7 @@ def main(config):
         #Plotting
         for i in range(10):
             sample_task = test_task.sample_task()
-            x_all, y_all = sample_task.sample_data(n_shot_train, noise=0.1, sort=True)
+            x_all, y_all = sample_task.sample_data(sample_size, noise=0.1, sort=True)
             query_indices = np.sort(indices[n_shot_test:])
             x_support = x_all[support_indices]
             y_support = y_all[support_indices]
@@ -139,14 +144,14 @@ def main(config):
             mu, sigma = model(x_support, y_support, x_query)
             model.mu = mu
             model.sigma = sigma
-            mse = criterion(mu, y_query)
+
+            mse = criterion(mu.squeeze(), y_query.squeeze())
             mse_list.append(mse.item())
 
             # Evaluation on all data
-            mvn = Normal(model.mu, model.sigma)
-            mean = np.squeeze(mvn.mean)
-            lower = np.squeeze(mvn.mean - mvn.variance)
-            upper = np.squeeze(mvn.mean + mvn.variance)
+            mean = np.squeeze(model.mu)
+            lower = np.squeeze(model.mu - model.sigma)
+            upper = np.squeeze(model.mu + model.sigma)
 
             # Plot
             fig, ax = plt.subplots()

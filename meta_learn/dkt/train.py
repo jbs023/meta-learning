@@ -19,7 +19,7 @@ import numpy as np
 
 def main():
     ## Defining model
-    n_shot_train = 40
+    n_shot_train = 10
     n_shot_test = int(n_shot_train/2)
     train_range = (-5.0, 5.0)
     test_range = (-5.0, 5.0)  # This must be (-5, +10) for the out-of-range condition
@@ -64,20 +64,21 @@ def main():
     gp.train()
     net.train()
 
-    tot_iterations = 10000
+    tot_iterations = 50000
     mse_list = list()
     loss_list = list()
     for epoch in range(tot_iterations):
         optimizer.zero_grad()
         inputs, labels = train_task.sample_task().sample_data(n_shot_train, noise=0.1)
         z = net(inputs)
-        labels = labels.squeeze()
-        gp.set_train_data(inputs=z, targets=labels)
+
+        gp.set_train_data(inputs=z, targets=labels.squeeze())
         predictions = gp(z)
         loss = -mll(predictions, gp.train_targets)
         loss.backward()
         optimizer.step()
-        mse = criterion(predictions.mean, labels)
+
+        mse = criterion(predictions.mean, labels.squeeze())
         loss_list.append(loss.item())
         mse_list.append(mse.item())
 
@@ -101,11 +102,11 @@ def main():
 
     likelihood.eval()
     net.eval()
-    tot_iterations = 500
     mse_list = list()
+    tot_iterations = 500
+    sample_size = 20
     for epoch in range(tot_iterations):
         sample_task = test_task.sample_task()
-        sample_size = n_shot_train
         x_all, y_all = sample_task.sample_data(sample_size, noise=0.1, sort=True)
         indices = np.arange(sample_size)
         np.random.shuffle(indices)
@@ -127,7 +128,7 @@ def main():
         z_query = net(x_query).detach()
         mean = likelihood(gp(z_query)).mean
 
-        mse = criterion(mean, y_query)
+        mse = criterion(mean.squeeze(), y_query.squeeze())
         mse_list.append(mse.item())
 
     print("-------------------")

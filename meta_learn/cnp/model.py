@@ -97,6 +97,7 @@ class CNP(nn.Module):
         #Calculate loss
         target_y = target_y.squeeze(-1)
         target_mask = target_mask.squeeze(-1)
+        
         mvn = Normal(self.mu, self.sigma)
         loss = -torch.sum(mvn.log_prob(target_y) * target_mask.float())
         return loss

@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from gpytorch.mlls import VariationalELBO
-from meta_learn.dkt.model import ApproximateGPModel, FCResNet, initial_values
+from meta_learn.dkt.model import ApproximateGPModel, FCResNet, FeatureExtractor, initial_values
 from meta_learn.sine_dataset import Task_Distribution
 
 sns.set()
@@ -47,12 +47,10 @@ def main():
     )
 
 
-    net = FCResNet()
-    likelihood = gpytorch.likelihoods.GaussianLikelihood()
-    dummy_inputs = torch.zeros([n_shot_train, 40])
-    dummy_labels = torch.zeros([n_shot_train])
-
+    # net = FCResNet()
+    net = FeatureExtractor()
     init_inducing_points, init_lengthscale = initial_values(task_train, net, n_shot_train)
+    likelihood = gpytorch.likelihoods.GaussianLikelihood()
     gp = ApproximateGPModel(init_inducing_points, init_lengthscale, likelihood)
     elbo = VariationalELBO(likelihood, gp, num_data=n_shot_train)
     optimizer = torch.optim.Adam(
@@ -71,7 +69,7 @@ def main():
         likelihood = likelihood.cuda()
         net = net.cuda()
 
-    tot_iterations = 500  # 50000
+    tot_iterations = 50000
     mse_list = list()
     loss_list = list()
     for epoch in range(tot_iterations):
@@ -82,14 +80,12 @@ def main():
             labels = labels.cuda()
         
         z = net(inputs)
-        # gp.set_train_data(inputs=z, targets=labels)
-        print(z.shape, labels.shape)
-        fantasy_gp = gp.get_fantasy_model(inputs=z, targets=labels)
         predictions = gp(z)
-        loss = -elbo(predictions, labels)
+        
+        loss = -elbo(predictions, labels.squeeze())
         loss.backward()
         optimizer.step()
-        mse = criterion(predictions.mean, labels)
+        mse = criterion(predictions.mean, labels.squeeze())
         loss_list.append(loss.item())
         mse_list.append(mse.item())
 
@@ -113,11 +109,11 @@ def main():
 
     likelihood.eval()
     net.eval()
-    tot_iterations = 500
     mse_list = list()
+    tot_iterations = 500
+    sample_size = 10
     for epoch in range(tot_iterations):
         sample_task = tasks_test.sample_task()
-        sample_size = 200
         x_all, y_all = sample_task.sample_data(sample_size, noise=0.1, sort=True)
         if torch.cuda.is_available():
             x_all = x_all.cuda()
@@ -134,16 +130,17 @@ def main():
         y_query = y_all[query_indices]
 
         # Feed the support set
-        z_support = net(x_support).detach()
+        z_support = net(x_support)
+
         gp.train()
-        fantasy_gp = gp.get_fantasy_model(inputs=z_support, targets=y_support)
+        fantasy_gp = gp.get_fantasy_model(inputs=z_support, targets=y_support.squeeze())
         fantasy_gp.eval()
 
         # Evaluation on query set
-        z_query = net(x_query).detach()
+        z_query = net(x_query)
         mean = likelihood(fantasy_gp(z_query)).mean
 
-        mse = criterion(mean, y_query)
+        mse = criterion(mean.squeeze(), y_query.squeeze())
         mse_list.append(mse.item())
 
     print("-------------------")
@@ -163,13 +160,13 @@ def main():
         x_query = x_all[query_indices]
         y_query = y_all[query_indices]
 
-        z_support = net(x_support).detach()
+        z_support = net(x_support)
         gp.train()
-        fantasy_gp = gp.get_fantasy_model(inputs=z_support, targets=y_support)
+        fantasy_gp = gp.get_fantasy_model(inputs=z_support, targets=y_support.squeeze())
         fantasy_gp.eval()
 
         # Evaluation on all data
-        z_all = net(x_all).detach()
+        z_all = net(x_all)
         mean = likelihood(fantasy_gp(z_all)).mean
         lower, upper = likelihood(
             fantasy_gp(z_all)
@@ -198,8 +195,6 @@ def main():
                 linewidth=2.0,
             )
 
-        # query points (ground-truth)
-        # ax.scatter(x_query, y_query, color='blue')
         
         # query points (predicted)
         x_all = x_all.cpu()
@@ -208,6 +203,11 @@ def main():
         upper = upper.cpu()
         x_support = x_support.cpu()
         y_support = y_support.cpu()
+        x_query = x_query.cpu()
+        y_query = y_query.cpu()
+
+        # query points (ground-truth)
+        ax.scatter(x_query.detach().numpy(), y_query.detach().numpy(), color='red')
 
         ax.plot(np.squeeze(x_all), mean.detach().numpy(), color="red", linewidth=2.0)
         ax.fill_between(
