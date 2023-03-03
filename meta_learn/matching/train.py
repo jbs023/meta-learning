@@ -1,3 +1,4 @@
+
 import argparse
 import os
 
@@ -6,12 +7,22 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+
+import argparse
+import os
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from tqdm import tqdm
+import torch.optim as optim
 from meta_learn.datasets import BatchMetaDataLoader, get_omniglot
 from meta_learn.matching.model import MatchingNetwork
 
 from torch.utils.tensorboard import SummaryWriter
 
-from tqdm import tqdm
 
 # Get cpu or gpu device for training.
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -24,6 +35,17 @@ def pairwise_cosine_similarity(embeddings1, embeddings2, eps=1e-8):
     inverse_norm = torch.rsqrt(torch.clamp(sq_norm1 * sq_norm2, min=eps**2))
     return dot_product * inverse_norm
 
+
+# Get cpu or gpu device for training.
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def pairwise_cosine_similarity(embeddings1, embeddings2, eps=1e-8):
+    sq_norm1 = torch.sum(embeddings1**2, dim=2, keepdim=True)
+    sq_norm2 = torch.sum(embeddings2**2, dim=2).unsqueeze(1)
+    dot_product = torch.bmm(embeddings1, embeddings2.transpose(1, 2))
+    inverse_norm = torch.rsqrt(torch.clamp(sq_norm1 * sq_norm2, min=eps**2))
+    return dot_product * inverse_norm
 
 def matching_log_probas(embeddings, targets, test_embeddings, num_classes, eps=1e-8):
     batch_size, num_samples, _ = test_embeddings.shape
@@ -45,20 +67,25 @@ def train(dataloader, model, optimizer, num_batches):
     with tqdm(dataloader, total=num_batches) as pbar:
         for batch_idx, batch in enumerate(pbar):
             model.zero_grad()
-
             train_inputs, train_targets = batch["train"]
             train_inputs = train_inputs.to(device=device)
             train_targets = train_targets.to(device=device)
             train_embeddings = model(train_inputs)
 
-            test_inputs, test_targets = batch["test"]
+            test_inputs, test_targets = batch['test']
             test_inputs = test_inputs.to(device=device)
             test_targets = test_targets.to(device=device)
             test_embeddings = model(test_inputs)
 
+
             logits = matching_log_probas(
                 train_embeddings, train_targets, test_embeddings, 5
             )
+
+            logits = matching_log_probas(
+                train_embeddings, train_targets, test_embeddings, 5
+            )
+
             loss = F.nll_loss(logits, test_targets)
 
             # Compute prediction error
@@ -80,7 +107,7 @@ def test(dataloader, model, num_batches):
     avg_loss = list()
     with torch.no_grad():
         for batch_idx, batch in enumerate(dataloader):
-            train_inputs, train_targets = batch["train"]
+            train_inputs, train_targets = batch['train']
             train_inputs = train_inputs.to(device=device)
             train_targets = train_targets.to(device=device)
             train_embeddings = model(train_inputs)
@@ -89,6 +116,7 @@ def test(dataloader, model, num_batches):
             test_inputs = test_inputs.to(device=device)
             test_targets = test_targets.to(device=device)
             test_embeddings = model(test_inputs)
+
 
             logits = matching_log_probas(
                 train_embeddings, train_targets, test_embeddings, 5

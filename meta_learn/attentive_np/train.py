@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from meta_learn.attentive_np.model import ANP
 
 from meta_learn.cnp.model import CNP
 from meta_learn.sine_dataset import Task_Distribution
@@ -22,7 +23,7 @@ device = "cpu"
 
 def main(config):
     path = config.path
-    n_shot_train = 10
+    n_shot_train = 100
     n_shot_test = int(n_shot_train/2)
     train_range = (-5.0, 5.0)
     test_range = (-5.0, 5.0)  # This must be (-5, +10) for the out-of-range condition
@@ -48,7 +49,7 @@ def main(config):
         family="sine",
     )
 
-    model = CNP(2, 64)
+    model = ANP(2, 64)
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
     model.to(device=device)
     criterion = nn.MSELoss()
@@ -73,16 +74,11 @@ def main(config):
         x_query = x_all[query_indices]
         y_query = y_all[query_indices]
 
-        mu, sigma = model(x_support, y_support, x_query)
-        model.mu = mu
-        model.sigma = sigma
-        
-        target_mask = torch.ones(y_query.shape).to(device)
-        loss = model.loss_fn(y_query, target_mask)
+        pred, kl, loss = model(x_support, y_support, x_query, y_query)
         loss.backward()
         optimizer.step()
 
-        mse = criterion(mu.squeeze(), y_query.squeeze())
+        mse = criterion(pred.squeeze(), y_query.squeeze())
         loss_list.append(loss.item())
         mse_list.append(mse.item())
 
@@ -120,11 +116,9 @@ def main(config):
             y_query = y_all[query_indices]
 
             # Feed the support set
-            mu, sigma = model(x_support, y_support, x_query)
-            model.mu = mu
-            model.sigma = sigma
-
-            mse = criterion(mu.squeeze(), y_query.squeeze())
+            pred, kl, loss = model(x_support, y_support, x_query, y_query)
+            mse = criterion(pred.squeeze(), y_query.squeeze())
+            loss_list.append(loss.item())
             mse_list.append(mse.item())
 
         print("-------------------")

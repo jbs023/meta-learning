@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from meta_learn.dkt.model import ExactGPModel, FeatureExtractor
-from meta_learn.dkt.sine_dataset import Task_Distribution
+from meta_learn.sine_dataset import Task_Distribution
 
 sns.set()
 
@@ -20,13 +20,13 @@ import numpy as np
 def main():
     ## Defining model
     n_shot_train = 10
-    n_shot_test = 5
+    n_shot_test = int(n_shot_train/2)
     train_range = (-5.0, 5.0)
     test_range = (-5.0, 5.0)  # This must be (-5, +10) for the out-of-range condition
     criterion = nn.MSELoss()
 
     #Set up datasets
-    task_train = Task_Distribution(
+    train_task = Task_Distribution(
         amplitude_min=0.1,
         amplitude_max=5.0,
         phase_min=0.0,
@@ -35,7 +35,7 @@ def main():
         x_max=train_range[1],
         family="sine",
     )
-    tasks_test = Task_Distribution(
+    test_task = Task_Distribution(
         amplitude_min=0.1,
         amplitude_max=5.0,
         phase_min=0.0,
@@ -51,6 +51,15 @@ def main():
     dummy_inputs = torch.zeros([n_shot_train, 40])
     dummy_labels = torch.zeros([n_shot_train])
     gp = ExactGPModel(dummy_inputs, dummy_labels, likelihood)
+
+
+
+    total_params = 0
+    for model in [net, gp]:
+        model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+        total_params += sum([np.prod(p.size()) for p in model_parameters])
+    print(f"Num params: {total_params}")
+
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, gp)
     optimizer = torch.optim.Adam(
         [
@@ -64,40 +73,49 @@ def main():
     gp.train()
     net.train()
 
-    tot_iterations = 50000  # 50000
+    tot_iterations = 100000
+    mse_list = list()
+    loss_list = list()
     for epoch in range(tot_iterations):
         optimizer.zero_grad()
-        inputs, labels = task_train.sample_task().sample_data(n_shot_train, noise=0.1)
+        inputs, labels = train_task.sample_task().sample_data(n_shot_train, noise=0.1)
         z = net(inputs)
-        gp.set_train_data(inputs=z, targets=labels)
+
+        gp.set_train_data(inputs=z, targets=labels.squeeze())
         predictions = gp(z)
         loss = -mll(predictions, gp.train_targets)
         loss.backward()
         optimizer.step()
-        mse = criterion(predictions.mean, labels)
+
+        mse = criterion(predictions.mean, labels.squeeze())
+        loss_list.append(loss.item())
+        mse_list.append(mse.item())
+
         # ---- print some stuff ----
         if epoch % 100 == 0:
             print(
                 "[%d] - Loss: %.3f  MSE: %.3f  lengthscale: %.3f   noise: %.3f"
                 % (
                     epoch,
-                    loss.item(),
-                    mse.item(),
+                    np.mean(loss_list),
+                    np.mean(mse_list),
                     0.0,  # gp.covar_module.base_kernel.lengthscale.item(),
                     gp.likelihood.noise.item(),
                 )
             )
+            mse_list = list()
+            loss_list = list()
 
     ## Test phase on a new sine/cosine wave
     print("Test, please wait...")
 
     likelihood.eval()
     net.eval()
-    tot_iterations = 500
     mse_list = list()
+    tot_iterations = 500
+    sample_size = 20
     for epoch in range(tot_iterations):
-        sample_task = tasks_test.sample_task()
-        sample_size = 200
+        sample_task = test_task.sample_task()
         x_all, y_all = sample_task.sample_data(sample_size, noise=0.1, sort=True)
         indices = np.arange(sample_size)
         np.random.shuffle(indices)
@@ -112,14 +130,14 @@ def main():
         # Feed the support set
         z_support = net(x_support).detach()
         gp.train()
-        gp.set_train_data(inputs=z_support, targets=y_support, strict=False)
+        gp.set_train_data(inputs=z_support, targets=y_support.squeeze(), strict=False)
         gp.eval()
 
         # Evaluation on query set
         z_query = net(x_query).detach()
         mean = likelihood(gp(z_query)).mean
 
-        mse = criterion(mean, y_query)
+        mse = criterion(mean.squeeze(), y_query.squeeze())
         mse_list.append(mse.item())
 
     print("-------------------")
@@ -128,6 +146,7 @@ def main():
 
     #Plotting
     for i in range(10):
+        sample_task = test_task.sample_task()
         x_all, y_all = sample_task.sample_data(sample_size, noise=0.1, sort=True)
         query_indices = np.sort(indices[n_shot_test:])
         x_support = x_all[support_indices]
@@ -137,7 +156,7 @@ def main():
 
         z_support = net(x_support).detach()
         gp.train()
-        gp.set_train_data(inputs=z_support, targets=y_support, strict=False)
+        gp.set_train_data(inputs=z_support, targets=y_support.squeeze(), strict=False)
         gp.eval()
 
         # Evaluation on all data
@@ -171,8 +190,8 @@ def main():
             )
 
         # query points (ground-truth)
-        # ax.scatter(x_query, y_query, color='blue')
-        
+        ax.scatter(x_query, y_query, color='red')        
+
         # query points (predicted)
         ax.plot(np.squeeze(x_all), mean.detach().numpy(), color="red", linewidth=2.0)
         ax.fill_between(
