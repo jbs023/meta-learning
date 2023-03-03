@@ -23,7 +23,7 @@ device = "cpu"
 
 def main(config):
     path = config.path
-    n_shot_train = 100
+    n_shot_train = 10
     n_shot_test = int(n_shot_train/2)
     train_range = (-5.0, 5.0)
     test_range = (-5.0, 5.0)  # This must be (-5, +10) for the out-of-range condition
@@ -74,11 +74,11 @@ def main(config):
         x_query = x_all[query_indices]
         y_query = y_all[query_indices]
 
-        pred, kl, loss = model(x_support, y_support, x_query, y_query)
+        mu, sigma, loss = model(x_support, y_support, x_query, y_query)
         loss.backward()
         optimizer.step()
 
-        mse = criterion(pred.squeeze(), y_query.squeeze())
+        mse = criterion(mu.squeeze(), y_query.squeeze())
         loss_list.append(loss.item())
         mse_list.append(mse.item())
 
@@ -115,9 +115,10 @@ def main(config):
             x_query = x_all[query_indices]
             y_query = y_all[query_indices]
 
-            # Feed the support set
-            pred, kl, loss = model(x_support, y_support, x_query, y_query)
-            mse = criterion(pred.squeeze(), y_query.squeeze())
+            mu, sigma, loss = model(x_support, y_support, x_query, y_query)
+            optimizer.step()
+
+            mse = criterion(mu.squeeze(), y_query.squeeze())
             loss_list.append(loss.item())
             mse_list.append(mse.item())
 
@@ -135,17 +136,13 @@ def main(config):
             x_query = x_all[query_indices]
             y_query = y_all[query_indices]
 
-            mu, sigma = model(x_support, y_support, x_query)
-            model.mu = mu
-            model.sigma = sigma
-
-            mse = criterion(mu.squeeze(), y_query.squeeze())
-            mse_list.append(mse.item())
+            mu, sigma, loss = model(x_support, y_support, x_query, y_query)
+            optimizer.step()
 
             # Evaluation on all data
-            mean = np.squeeze(model.mu)
-            lower = np.squeeze(model.mu - model.sigma)
-            upper = np.squeeze(model.mu + model.sigma)
+            mean = np.squeeze(mu)
+            lower = np.squeeze(mu - sigma)
+            upper = np.squeeze(mu + sigma)
 
             # Plot
             fig, ax = plt.subplots()
@@ -190,7 +187,7 @@ def main(config):
             # plt.show()
             plt.ylim(-6.0, 6.0)
             plt.xlim(test_range[0], test_range[1])
-            plt.savefig("plot_CNP_" + str(i) + ".png", dpi=300)
+            plt.savefig("plot_ANP_" + str(i) + ".png", dpi=300)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

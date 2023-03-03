@@ -110,7 +110,7 @@ class Decoder(nn.Module):
         #The extra one comes from when you concat target values
         self.fc1 = nn.Linear(hidden_size+1+10, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, 1)
+        self.fc3 = nn.Linear(hidden_size, 2)
         
     def forward(self, representation, target_x, shots):
         #Concat representation and target values
@@ -124,12 +124,12 @@ class Decoder(nn.Module):
 
         # Calculate mu and sigma of decoded values,
         # across appropriate dimension
-        # mu = x[:,:,0]
-        # log_sigma = x[:,:,1]
+        mu = x[:,:,0]
+        log_sigma = x[:,:,1]
 
         #Bound the variance
-        # sigma = 0.1 + 0.9 * nn.functional.softplus(log_sigma)
-        return x
+        sigma = 0.1 + 0.9 * nn.functional.softplus(log_sigma)
+        return mu, sigma
 
     
 class ANP(nn.Module):
@@ -165,20 +165,22 @@ class ANP(nn.Module):
         representation = torch.concat([deter_rep, latent_rep], dim=-1)
 
         #Decode
-        y_pred = self.decoder(representation, target_x, context_x.shape[0])   
+        mu, sigma = self.decoder(representation, target_x, context_x.shape[0])
 
-        # get log probability
+        # Get Expected valued of log probability function
         target_y = target_y.unsqueeze(0)
-        mse = self.mse_loss(y_pred, target_y)
+        mvn = Normal(mu, sigma)
+        log_p = mvn.log_prob(target_y)
         
         # get KL divergence between prior and posterior
         kl = self.kl_div(prior.mean, prior.stddev, posterior.mean, posterior.stddev)
         
         # maximize prob and minimize KL divergence
-        loss = mse + kl
-        return y_pred, kl, loss
+        loss = - torch.mean(log_p - kl)
+        return mu, sigma, loss
         
     def kl_div(self, prior_mu, prior_var, posterior_mu, posterior_var):
         kl_div = (torch.exp(posterior_var) + (posterior_mu-prior_mu) ** 2) / torch.exp(prior_var) - 1. + (prior_var - posterior_var)
-        kl_div = 0.5 * kl_div.sum()
+        kl_div = kl_div.sum()
+        kl_div = torch.tile(kl_div, (1,5)) #TODO: Make this configuratable
         return kl_div
