@@ -9,6 +9,7 @@ A reimplementation of some popular approaches.
 3. [Model Agnostic Meta-Learning](http://proceedings.mlr.press/v70/finn17a/finn17a.pdf)
 4. [Conditional Neural Processes](https://arxiv.org/pdf/1807.01613.pdf)
 5. [Deep Kernel Transfer](https://proceedings.neurips.cc/paper/2020/file/b9cfe8b6042cf759dc4c0cccb27a6737-Paper.pdf)
+6. [Attentive Neural Processes](https://arxiv.org/pdf/1901.05761.pdf)
 
 This repo is an exercise for my own education and heavily relies on other people's code. I try to cite the necessary sources when appropriate. Additionally, there are many things that are redudant and un-optimized. One day I hope to go through and make everything pretty, but you know how grad school is.
 
