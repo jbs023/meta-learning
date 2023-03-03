@@ -1,5 +1,6 @@
 #This code is a modified version of: https://github.com/deepmind/neural-processes
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -80,6 +81,11 @@ class CNP(nn.Module):
         super(CNP, self).__init__()
         self.encoder = CNP_encoder(input_size, hidden_size)
         self.decoder = CNP_decoder(hidden_size)
+        total_params = 0
+        for model in [self.encoder, self.decoder]:
+            model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+            total_params += sum([np.prod(p.size()) for p in model_parameters])
+        print(f"Num params: {total_params}")
 
         #These values get updated during training
         self.mu = 0

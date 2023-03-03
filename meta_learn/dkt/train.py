@@ -51,6 +51,15 @@ def main():
     dummy_inputs = torch.zeros([n_shot_train, 40])
     dummy_labels = torch.zeros([n_shot_train])
     gp = ExactGPModel(dummy_inputs, dummy_labels, likelihood)
+
+
+
+    total_params = 0
+    for model in [net, gp]:
+        model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+        total_params += sum([np.prod(p.size()) for p in model_parameters])
+    print(f"Num params: {total_params}")
+
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, gp)
     optimizer = torch.optim.Adam(
         [
@@ -64,7 +73,7 @@ def main():
     gp.train()
     net.train()
 
-    tot_iterations = 50000
+    tot_iterations = 100000
     mse_list = list()
     loss_list = list()
     for epoch in range(tot_iterations):
