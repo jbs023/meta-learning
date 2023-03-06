@@ -55,7 +55,7 @@ def main(config):
     criterion = nn.MSELoss()
 
     ## Training
-    tot_iterations = 100000
+    tot_iterations = 10000
     mse_list = list()
     loss_list = list()
     for epoch in range(tot_iterations):
@@ -101,8 +101,8 @@ def main(config):
     with torch.no_grad():
         tot_iterations = 500
         mse_list = list()
-        sample_size = 20
-        n_shot_test = 10
+        sample_size = 10
+        n_shot_test = 5
         for epoch in range(tot_iterations):
             x_all, y_all = test_task.sample_task().sample_data(sample_size, noise=0.1, sort=True)
             indices = np.arange(sample_size)
@@ -172,6 +172,8 @@ def main(config):
             
             # query points (predicted)
             ax.plot(np.squeeze(x_query), mean.detach().numpy(), color="red", linewidth=2.0)
+            # print(lower.detach().numpy(), upper.detach().numpy())
+            # print()
             ax.fill_between(
                 np.squeeze(x_query),
                 lower.detach().numpy(),
